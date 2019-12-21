@@ -1,0 +1,16 @@
+{
+  "file": "pancho.sqlite",
+  "tables": [
+    {
+      "name":  "user",
+      "columns": [
+        {"name":  "id", "type":  "int"},
+        {"name":  "is_bot", "type":  "bool"},
+        {"name":  "first_name", "type":  "str"},
+        {"name":  "last_name", "type":  "str"},
+        {"name":  "username", "type":  "str"},
+        {"name":  "language_code", "type":  "str"}
+      ]
+    }
+  ]
+}
