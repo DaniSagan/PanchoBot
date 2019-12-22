@@ -1,15 +1,30 @@
 {
-  "file": "pancho.sqlite",
+  "filename": "pancho.sqlite",
   "tables": [
     {
       "name":  "user",
       "columns": [
-        {"name":  "id", "type":  "int"},
+        {"name":  "id_user", "type":  "int"},
         {"name":  "is_bot", "type":  "bool"},
-        {"name":  "first_name", "type":  "str"},
-        {"name":  "last_name", "type":  "str"},
-        {"name":  "username", "type":  "str"},
-        {"name":  "language_code", "type":  "str"}
+        {"name":  "first_name", "type":  "str?"},
+        {"name":  "last_name", "type":  "str?"},
+        {"name":  "username", "type":  "str?"},
+        {"name":  "language_code", "type":  "str?"}
+      ],
+      "primary_key": "id_user",
+      "foreign_keys": []
+    },
+    {
+      "name": "message",
+      "columns": [
+        {"name":  "id_message", "type":  "int"},
+        {"name":  "id_user", "type":  "int"},
+        {"name":  "date", "type":  "int"},
+        {"name":  "text", "type": "str?"}
+      ],
+      "primary_key": "id_message",
+      "foreign_keys": [
+        {"column": "id_user", "references": "user.id_user"}
       ]
     }
   ]

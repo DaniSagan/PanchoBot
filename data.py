@@ -1,7 +1,9 @@
 import urllib.request
 import http.client
 import json
-from typing import List, Optional
+from typing import List, Optional, Dict
+
+from db.database import Database, Table, Row
 
 
 class GetUpdatesResponse(object):
@@ -17,11 +19,29 @@ class GetUpdatesResponse(object):
         return res
 
 
+class BotConfig(object):
+    def __init__(self):
+        self.database_definition_file = None  # type: Optional[str]
+
+    @staticmethod
+    def from_json(json: Dict) -> 'BotConfig':
+        res = BotConfig()  # type: BotConfig
+        res.database_definition_file = json.get('database_definition_file')
+        return res
+
+
 class Bot(object):
 
-    def __init__(self, token: str, db_filename: str):
-        self.token = token
-        self.db_filename = db_filename
+    def __init__(self, token: str, config: BotConfig):
+        self.token = token  # type: str
+        self.config = config  # type: BotConfig
+        self.database = None  # type: Optional[Database]
+
+    def initialize(self):
+        with open(self.config.database_definition_file) as fobj:
+            db_definition_str = fobj.read()  # type: str
+        self.database = Database.from_json(json.loads(db_definition_str))
+        self.database.create_tables()
 
     def base_url(self) -> str:
         return 'https://api.telegram.org/bot{t}/'.format(t=self.token)
@@ -70,20 +90,32 @@ class Message(object):
 
 class User(object):
     def __init__(self):
-        self.id = 0  # type: int
+        self.id_user = 0  # type: int
         self.is_bot = False  # type: bool
-        self.first_name = None  # type: str
-        self.last_name = None  # type: str
-        self.username = None  # type: str
-        self.language_code = None  # type: str
+        self.first_name = None  # type: Optional[str]
+        self.last_name = None  # type: Optional[str]
+        self.username = None  # type: Optional[str]
+        self.language_code = None  # type: Optional[str]
 
     @staticmethod
     def from_json(json_obj) -> 'User':
         res = User()  # type: User
-        res.id = json_obj['id']
+        res.id_user = json_obj['id']
         res.is_bot = json_obj['is_bot']
         res.first_name = json_obj['first_name']
         res.last_name = json_obj['last_name']
         res.username = json_obj.get('username')
         res.language_code = json_obj['language_code']
         return res
+
+    def to_row(self, database: Database) -> Row:
+        res = Row()
+        res.table_name = 'user'
+        res.put('id_user', self.id_user)
+        res.put('is_bot', self.is_bot)
+        res.put('first_name', self.first_name)
+        res.put('last_name', self.last_name)
+        res.put('username', self.username)
+        res.put('language_code', self.language_code)
+        return res
+
