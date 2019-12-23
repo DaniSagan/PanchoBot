@@ -95,18 +95,47 @@ class Update(DbSerializable):
         return res
 
 
+class Chat(DbSerializable):
+    def __init__(self):
+        self.id_chat = 0  # type: int
+        self.first_name = None  # type: str
+        self.last_name = None  # type: str
+        self.type = None  # type: str
+
+    @staticmethod
+    def from_json(json_obj) -> 'Chat':
+        res = Chat()  # type: Chat
+        res.id_chat = json_obj['id']
+        res.type = json_obj['type']
+        res.first_name = json_obj.get('first_name')
+        res.last_name = json_obj.get('last_name')
+        return res
+
+    def to_data_set(self):
+        res = DataSet()
+        row = DataRow('chat', self.id_chat)
+        row.put('id_chat', self.id_chat)
+        row.put('type', self.type)
+        row.put('first_name', self.first_name)
+        row.put('last_name', self.last_name)
+        res.merge_row(row)
+        return res
+
+
 class Message(DbSerializable):
     def __init__(self):
         self.id_message = 0  # type: int
         self._from = None  # type: Optional[User]
         self.date = None  # type: Optional[int]
         self.text = None  # type: Optional[str]
+        self.chat = None  # type: Optional[Chat]
 
     @staticmethod
     def from_json(json_obj) -> 'Message':
         res = Message()  # type: Message
         res.id_message = json_obj['message_id']
         res._from = User.from_json(json_obj['from'])
+        res.chat = Chat.from_json(json_obj['chat'])
         res.date = json_obj['date']
         res.text = json_obj['text']
         return res
@@ -120,6 +149,7 @@ class Message(DbSerializable):
         row.put('text', self.text)
         res.merge_row(row)
         res.merge(self._from.to_data_set())
+        res.merge(self.chat.to_data_set())
         return res
 
 

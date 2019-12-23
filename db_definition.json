@@ -24,6 +24,17 @@
       "foreign_keys": []
     },
     {
+      "name":  "chat",
+      "columns": [
+        {"name":  "id_chat", "type":  "int"},
+        {"name":  "type", "type":  "str"},
+        {"name":  "first_name", "type":  "str?"},
+        {"name":  "last_name", "type":  "str?"}
+      ],
+      "primary_key": "id_chat",
+      "foreign_keys": []
+    },
+    {
       "name": "message",
       "columns": [
         {"name":  "id_message", "type":  "int"},
