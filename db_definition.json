@@ -2,6 +2,15 @@
   "filename": "pancho.sqlite",
   "tables": [
     {
+      "name": "parameter",
+      "columns": [
+        {"name": "key", "type": "str"},
+        {"name": "value", "type": "str"}
+      ],
+      "primary_key": "key",
+      "foreign_keys": []
+    },
+    {
       "name":  "user",
       "columns": [
         {"name":  "id_user", "type":  "int"},
@@ -25,6 +34,17 @@
       "primary_key": "id_message",
       "foreign_keys": [
         {"column": "id_user", "references": "user.id_user"}
+      ]
+    },
+    {
+      "name": "update",
+      "columns": [
+        {"name": "id_update", "type": "int"},
+        {"name": "id_message", "type": "int"}
+      ],
+      "primary_key": "id_update",
+      "foreign_keys": [
+        {"column": "id_message", "references": "message.id_message"}
       ]
     }
   ]

@@ -1,5 +1,6 @@
 import sqlite3
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Tuple, Set
+import itertools
 
 
 class Column(object):
@@ -12,8 +13,8 @@ class Column(object):
     }
 
     def __init__(self):
-        self.name = None  # type: Optional[str]
-        self.type = None  # type: Optional[str]
+        self.name = ''  # type: str
+        self.type = ''  # type: str
         self.nullable = False  # type: bool
 
     @staticmethod
@@ -40,6 +41,47 @@ class ForeignKey(object):
         res.referenced_table = references[0]
         res.referenced_column = references[1]
         return res
+
+
+class DataRow(object):
+    def __init__(self, table_name: str, identity: object):
+        self.identity = identity  # type: object
+        self.table_name = table_name  # type: str
+        self.items = {}  # type: Dict[str, object]
+
+    def put(self, key: str, value: object) -> None:
+        self.items[key] = value
+
+
+class DataTable(object):
+    def __init__(self, table_name):
+        self.table_name = table_name  # type: str
+        self.rows = {}  # type: Dict[object, DataRow]
+
+    def merge_rows(self, rows: List[DataRow]):
+        for row in rows:
+            if row.table_name == self.table_name and row.identity not in self.rows:
+                self.rows[row.identity] = row
+
+    def merge(self, other: 'DataTable'):
+        if self.table_name == other.table_name:
+            self.merge_rows(list(other.rows.values()))
+
+
+class DataSet(object):
+    def __init__(self):
+        self.tables = {}  # type: Dict[str, DataTable]
+
+    def merge_row(self, row: DataRow):
+        if row.table_name not in self.tables:
+            self.tables[row.table_name] = DataTable(row.table_name)
+        self.tables[row.table_name].merge_rows([row])
+
+    def merge(self, other: 'DataSet'):
+        for table_name in other.tables:
+            if table_name not in self.tables:
+                self.tables[table_name] = DataTable(table_name)
+            self.tables[table_name].merge(other.tables[table_name])
 
 
 class Table(object):
@@ -70,23 +112,39 @@ class Table(object):
         for foreign_key in self.foreign_keys:
             fk_str = 'FOREIGN KEY ({c}) REFERENCES {rt}({rc})'.format(c=foreign_key.column, rt=foreign_key.referenced_table, rc=foreign_key.referenced_column)
             columns_create_str_list.append(fk_str)
-        res = 'CREATE TABLE IF NOT EXISTS {t} ({cols});'.format(t=self.name, cols=', '.join(columns_create_str_list))
+        res = 'CREATE TABLE IF NOT EXISTS [{t}] ({cols});'.format(t=self.name, cols=', '.join(columns_create_str_list))
         return res
 
+    def row_to_tuple_for_insert(self, row: DataRow) -> Tuple:
+        res = [None] * len(self.columns)
+        for key in row.items:
+            try:
+                index = [i for i, col in enumerate(self.columns) if key == col.name][0]  # type: int
+            except:
+                raise RuntimeError('Column \'{k}\' not found in table \'{t}\''.format(k=key, t=self.name))
+            res[index] = row.items[key]
+        return tuple(res)
 
-class RowItem(object):
-    def __init__(self, key: str, value: object):
-        self.key = key  # type: str
-        self.value = value  # type: object
+    def row_to_tuple_for_update(self, row: DataRow) -> Tuple:
+        columns_without_pk = [c for c in self.columns if c.name != self.primary_key]  # type: List[Column]
+        res = [None for _ in columns_without_pk]  # type: List[object]
+        for key in row.items:
+            if key != self.primary_key:
+                try:
+                    index = [i for i, col in enumerate(columns_without_pk) if key == col.name][0]  # type: int
+                except:
+                    raise RuntimeError('Column \'{k}\' not found in table \'{t}\''.format(k=key, t=self.name))
+                res[index] = row.items[key]
+        res.append(row.items[self.primary_key])
+        return tuple(res)
 
 
-class Row(object):
-    def __init__(self):
-        self.items = []  # type: List[RowItem]
-        self.table_name = ''  # type: str
+class DbSerializable(object):
+    # def to_rows(self) -> List[DataRow]:
+    #     raise NotImplementedError()
 
-    def put(self, key: str, value: object) -> None:
-        self.items.append(RowItem(key, value))
+    def to_data_set(self) -> DataSet:
+        raise NotImplementedError()
 
 
 class Database(object):
@@ -103,6 +161,9 @@ class Database(object):
         res.tables = [Table.from_json(t) for t in json['tables']]
         return res
 
+    def create_connection(self) -> sqlite3.Connection:
+        return sqlite3.connect(self.filename)
+
     def create_tables(self):
         conn = sqlite3.connect(self.filename)  # type: sqlite3.Connection
         for table in self.tables:
@@ -116,7 +177,90 @@ class Database(object):
         rows = cursor.fetchall()
         return len(rows) > 0
 
-    def create_table(self, connection: sqlite3.Connection, table: Table):
+    def create_table(self, connection: sqlite3.Connection, table: Table) -> None:
         cursor = connection.cursor()  # type: sqlite3.Cursor
         cursor.execute(table.get_create_cmd())
+
+    # def insert(self, obj: DbSerializable):
+    #     dtc = obj.to_data_table_collection()
+    #     conn = sqlite3.connect(self.filename)
+    #     self.insert_data_table_collection(conn, dtc)
+    #     conn.close()
+
+    def save_data_set(self, connection: sqlite3.Connection, data_table_collection: DataSet):
+        for table_name in data_table_collection.tables:
+            self.save_data_table(connection, data_table_collection.tables[table_name])
+
+    def save_data_table(self, connection: sqlite3.Connection, data_table: DataTable):
+        existing_ids = self.get_existing_ids(connection, data_table.table_name)
+        new_rows = [r for r in data_table.rows.values() if r.identity not in existing_ids]
+        self.insert_rows(connection, new_rows)
+        existing_rows = [r for r in data_table.rows.values() if r.identity in existing_ids]
+        self.update_rows(connection, existing_rows)
+
+    def insert_rows(self, connection: sqlite3.Connection, rows: List[DataRow]) -> None:
+        cursor = connection.cursor()  # type: sqlite3.Connection
+        groups = itertools.groupby(rows, lambda r: r.table_name)
+        for table_name, table_rows in groups:
+            table = [t for t in self.tables if t.name == table_name][0]  # type: Table
+            columns = ', '.join([c.name for c in table.columns])  # type: str
+            values_placeholder = ', '.join(['?' for _ in table.columns])  # type: str
+            sql_cmd = 'INSERT into [{t}] ({c}) values ({v})'.format(t=table.name, c=columns, v=values_placeholder)  # type: str
+            values = [table.row_to_tuple_for_insert(row) for row in table_rows]
+            cursor.executemany(sql_cmd, values)
+
+    def insert_data_set(self, connection: sqlite3.Connection, data_table_collection: DataSet):
+        cursor = connection.cursor()
+        for table_name in data_table_collection.tables:
+            table = self.get_table(table_name)
+            columns = ', '.join([c.name for c in table.columns])  # type: str
+            values_placeholder = ', '.join(['?' for _ in table.columns])  # type: str
+            sql_cmd = 'INSERT into [{t}] ({c}) values ({v})'.format(t=table.name, c=columns,
+                                                                  v=values_placeholder)  # type: str
+            values = [table.row_to_tuple_for_insert(row) for row in data_table_collection.tables[table_name].rows.values()]
+            cursor.executemany(sql_cmd, values)
+
+    def update_rows(self, connection: sqlite3.Connection, rows: List[DataRow]) -> None:
+        cursor = connection.cursor()  # type: sqlite3.Connection
+        groups = itertools.groupby(rows, lambda r: r.table_name)
+        for table_name, rows in groups:
+            table = [t for t in self.tables if t.name == table_name][0]  # type: Table
+            values = ', '.join([c.name + '=?' for c in table.columns if c.name != table.primary_key])  # type: str
+            sql_cmd = 'UPDATE [{t}] SET {v} where {pk}=?'.format(t=table.name, pk=table.primary_key, v=values)  # type: str
+            values = [table.row_to_tuple_for_update(row) for row in rows]
+            cursor.executemany(sql_cmd, values)
+
+    def table_contains(self, connection: sqlite3.Connection, table_name: str, obj_id: object):
+        cursor = connection.cursor()  # type: sqlite3.Cursor
+        table = self.get_table(table_name)  # type: Table
+        cursor.execute('SELECT * FROM [{t}] WHERE {pk}=?;'.format(t=table_name, pk=table.primary_key), (obj_id,))
+        rows = cursor.fetchall()
+        return len(rows) > 0
+
+    def get_table(self, table_name: str) -> Table:
+        tables = [t for t in self.tables if t.name == table_name]
+        if len(tables) > 0:
+            return tables[0]
+        else:
+            raise RuntimeError('Table {t} not found'.format(t=table_name))
+
+    def query(self, connection: sqlite3.Connection, table_name: str, id_object: object, include_children: bool) -> List[DataRow]:
+        res = []  # type: List[DataRow]
+        cursor = connection.cursor()  # type: sqlite3.Cursor
+        table = self.get_table(table_name)  # type: Table
+        columns = ', '.join([c.name for c in table.columns])  # type: str
+        cursor.execute('SELECT {c} FROM [{t}] WHERE {pk}=?;'.format(c=columns, t=table_name, pk=table.primary_key), (id_object,))
+        rows = cursor.fetchall()
+        return res
+
+    def get_existing_ids(self, connection: sqlite3.Connection, table_name: str) -> Set:
+        res = set()
+        cursor = connection.cursor()  # type: sqlite3.Cursor
+        table = self.get_table(table_name)  # type: Table
+        cursor.execute('SELECT {c} FROM [{t}];'.format(c=table.primary_key, t=table_name))
+        rows = cursor.fetchall()
+        for row in rows:
+            res.add(row[0])
+        return res
+
 
