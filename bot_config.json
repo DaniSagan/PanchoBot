@@ -1,3 +1,4 @@
 {
-  "database_definition_file": "db_definition.json"
+  "database_definition_file": "db_definition.json",
+  "get_updates_timeout": 60
 }

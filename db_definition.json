@@ -39,12 +39,14 @@
       "columns": [
         {"name":  "id_message", "type":  "int"},
         {"name":  "id_user", "type":  "int"},
+        {"name":  "id_chat", "type":  "int"},
         {"name":  "date", "type":  "int"},
         {"name":  "text", "type": "str?"}
       ],
       "primary_key": "id_message",
       "foreign_keys": [
-        {"column": "id_user", "references": "user.id_user"}
+        {"column": "id_user", "references": "user.id_user"},
+        {"column": "id_chat", "references": "chat.id_chat"}
       ]
     },
     {

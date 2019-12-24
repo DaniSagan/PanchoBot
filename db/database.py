@@ -1,6 +1,7 @@
 import sqlite3
 from typing import Optional, List, Dict, Tuple, Set
 import itertools
+import utils
 
 
 class Column(object):
@@ -51,6 +52,9 @@ class DataRow(object):
 
     def put(self, key: str, value: object) -> None:
         self.items[key] = value
+
+    def get(self, key: str) -> object:
+        return self.items[key]
 
 
 class DataTable(object):
@@ -171,6 +175,11 @@ class Database(object):
                 self.create_table(conn, table)
         conn.close()
 
+    def save(self, obj: DbSerializable):
+        with self.create_connection() as connection:
+            self.save_data_set(connection, obj.to_data_set())
+            connection.commit()
+
     def table_exists(self, connection: sqlite3.Connection, table_name: str) -> bool:
         cursor = connection.cursor()  # type: sqlite3.Cursor
         cursor.execute('SELECT name FROM sqlite_master WHERE type=\'table\' AND name=\'{t}\';'.format(t=table_name))
@@ -244,13 +253,24 @@ class Database(object):
         else:
             raise RuntimeError('Table {t} not found'.format(t=table_name))
 
-    def query(self, connection: sqlite3.Connection, table_name: str, id_object: object, include_children: bool) -> List[DataRow]:
-        res = []  # type: List[DataRow]
+    def query(self, connection: sqlite3.Connection, table_name: str, id_object: object, include_children: bool) -> DataTable:
+        res = DataTable(table_name)  # type: DataTable
         cursor = connection.cursor()  # type: sqlite3.Cursor
         table = self.get_table(table_name)  # type: Table
-        columns = ', '.join([c.name for c in table.columns])  # type: str
-        cursor.execute('SELECT {c} FROM [{t}] WHERE {pk}=?;'.format(c=columns, t=table_name, pk=table.primary_key), (id_object,))
-        rows = cursor.fetchall()
+        column_names = [c.name for c in table.columns]
+        column_str = ', '.join(column_names)  # type: str
+        if id_object is not None:
+            cursor.execute('SELECT {c} FROM [{t}] WHERE {pk}=?;'.format(c=column_str, t=table_name, pk=table.primary_key), (id_object,))
+        else:
+            cursor.execute('SELECT {c} FROM [{t}];'.format(c=column_str, t=table_name))
+        row_tuples = cursor.fetchall()
+        for row_tuple in row_tuples:
+            row = DataRow(table_name, row_tuple[utils.first_index_of(column_names, table.primary_key)])  # type: DataRow
+            for column_name in column_names:
+                idx = utils.index_of(column_names, column_name)
+                if len(idx) > 0:
+                    row.put(column_name, row_tuple[idx[0]])
+            res.merge_rows([row])
         return res
 
     def get_existing_ids(self, connection: sqlite3.Connection, table_name: str) -> Set:
