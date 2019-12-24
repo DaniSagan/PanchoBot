@@ -1,10 +1,10 @@
 from bot import MessageHandlerBase, BotBase
-from data import Message, Chat
+from data import Message, Chat, ChatState
 from db.database import DataTable, DataSet
 
 
 class MessageSender(MessageHandlerBase):
-    def process_message(self, message: Message, bot: BotBase):
+    def process_message(self, message: Message, bot: BotBase, chat_state: ChatState = None):
         words = message.text.split(' ')
         if words[0].lower() == 'msg':
             if words[1].lower() == 'who':

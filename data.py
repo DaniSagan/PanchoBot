@@ -4,6 +4,10 @@ import http.client
 import json
 from typing import List, Optional, Dict
 
+import pickle
+
+import pathlib
+
 from db.database import Database, DataRow, DbSerializable, DataSet
 
 
@@ -55,6 +59,14 @@ class Update(DbSerializable):
         return res
 
 
+class ChatState(object):
+    def __init__(self):
+        self.current_handler_name = None  # type: str
+        self.last_time = 0  # type: int
+        self.chat_id = 0  # type: int
+        self.data = {}  # type: Dict
+
+
 class Chat(DbSerializable):
     def __init__(self):
         self.id_chat = 0  # type: int
@@ -91,6 +103,34 @@ class Chat(DbSerializable):
         res.first_name = row.get('first_name')
         res.last_name = row.get('last_name')
         return res
+
+    def retrieve_chat_state(self) -> Optional[ChatState]:
+        folder = pathlib.Path('chat')  # type: pathlib.Path
+        if not folder.exists():
+            return None
+        filename = folder.joinpath('{id}.pickle'.format(id=self.id_chat))
+        if filename.exists():
+            with open(filename, 'rb') as fobj:
+                data = pickle.load(fobj)
+            return data
+        else:
+            return None
+
+    def save_chat_state(self, chat_state: ChatState) -> None:
+        folder = pathlib.Path('chat')  # type: pathlib.Path
+        if not folder.exists():
+            folder.mkdir()
+        filename = folder.joinpath('{id}.pickle'.format(id=self.id_chat))
+        with open(filename, 'rb') as fobj:
+            pickle.dump(chat_state, fobj)
+
+    def remove_chat_state(self):
+        folder = pathlib.Path('chat')  # type: pathlib.Path
+        if not folder.exists():
+            return
+        filename = folder.joinpath('{id}.pickle'.format(id=self.id_chat))
+        if filename.exists():
+            filename.unlink()
 
 
 class Message(DbSerializable):

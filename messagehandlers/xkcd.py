@@ -3,12 +3,12 @@ from typing import List
 
 import utils
 from bot import MessageHandlerBase, BotBase
-from data import Message
+from data import Message, ChatState
 
 
 class Xkcd(MessageHandlerBase):
 
-    def process_message(self, message: Message, bot: BotBase):
+    def process_message(self, message: Message, bot: BotBase, chat_state: ChatState = None):
         words = message.text.split(' ')  # type: List[str]
         if words[0].lower() == 'xkcd':
             if len(words) == 1:

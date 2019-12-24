@@ -1,5 +1,5 @@
 import http.client
-from data import GetUpdatesResponse, Chat, Message, BotConfig
+from data import GetUpdatesResponse, Chat, Message, BotConfig, ChatState
 from db.database import Database, DataSet, DataRow, DataTable
 import json
 from typing import Dict, Optional, List
@@ -26,7 +26,7 @@ class MessageHandlerBase(object):
     def __init__(self):
         pass
 
-    def process_message(self, message: Message, bot: BotBase):
+    def process_message(self, message: Message, bot: BotBase, chat_state: ChatState = None):
         raise NotImplementedError()
 
 
@@ -36,7 +36,7 @@ class Bot(BotBase):
         BotBase.__init__(self)
         self.token = token  # type: str
         self.config = config  # type: BotConfig
-        self.message_handlers = []  # type: List[MessageHandlerBase]
+        self.message_handlers = {}  # type: Dict[str, type]
 
     def initialize(self):
         with open(self.config.database_definition_file) as fobj:
@@ -113,8 +113,20 @@ class Bot(BotBase):
             return None
 
     def on_new_message(self, message: Message):
-        for handler in self.message_handlers:
-            try:
-                handler.process_message(message, self)
-            except Exception as ex:
-                self.send_message(message.chat, 'Error: {e}'.format(e=str(ex)))
+        chat_state = message.chat.retrieve_chat_state()
+        if message.text.lower() == 'status':
+            if chat_state is not None:
+                self.send_message(message.chat, 'Current handler: {h}'.format(h=chat_state.current_handler_name))
+            else:
+                self.send_message(message.chat, 'OK')
+        elif message.text.lower() == 'quit':
+            message.chat.remove_chat_state()
+        else:
+            if chat_state is not None:
+                instance = self.message_handlers[chat_state.current_handler_name]()
+            for handler_name in self.message_handlers:
+                instance = self.message_handlers[handler_name]()
+                try:
+                    instance.process_message(message, self)
+                except Exception as ex:
+                    self.send_message(message.chat, 'Error: {e}'.format(e=str(ex)))
