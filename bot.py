@@ -1,8 +1,10 @@
+import http.client
 from data import GetUpdatesResponse, Chat, Message, BotConfig
-from db.database import Database, DataSet, DataRow
+from db.database import Database, DataSet, DataRow, DataTable
 import json
 from typing import Dict, Optional, List
-import urllib
+import urllib.request
+import urllib.parse
 
 
 class BotBase(object):
@@ -34,7 +36,6 @@ class Bot(BotBase):
         BotBase.__init__(self)
         self.token = token  # type: str
         self.config = config  # type: BotConfig
-        #self.database = None  # type: Optional[Database]
         self.message_handlers = []  # type: List[MessageHandlerBase]
 
     def initialize(self):
