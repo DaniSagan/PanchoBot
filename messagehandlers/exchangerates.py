@@ -1,5 +1,4 @@
-from typing import List
-
+from typing import Dict, List
 import utils
 from bot import MessageHandlerBase, BotBase
 from data import Message, ChatState

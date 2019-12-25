@@ -33,3 +33,4 @@ def get_url_json(url: str, params: Dict = None) -> Dict:
     # noinspection PyUnboundLocalVariable
     print('Received response: {r}'.format(r=received_str))
     return json.loads(received_str)
+

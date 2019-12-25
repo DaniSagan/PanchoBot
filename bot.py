@@ -2,7 +2,7 @@ import http.client
 from data import GetUpdatesResponse, Chat, Message, BotConfig, ChatState
 from db.database import Database, DataSet, DataRow, DataTable
 import json
-from typing import Dict, Optional, List
+from typing import Dict, Optional
 import urllib.request
 import urllib.parse
 
@@ -24,7 +24,7 @@ class BotBase(object):
 
 class MessageHandlerBase(object):
     def __init__(self):
-        pass
+        self.handler_name = ''  # type: str
 
     def process_message(self, message: Message, bot: BotBase, chat_state: ChatState = None):
         raise NotImplementedError()
@@ -124,8 +124,14 @@ class Bot(BotBase):
         else:
             if chat_state is not None:
                 instance = self.message_handlers[chat_state.current_handler_name]()
+                instance.handler_name = chat_state.current_handler_name
+                try:
+                    instance.process_message(message, self, chat_state)
+                except Exception as ex:
+                    self.send_message(message.chat, 'Error: {e}'.format(e=str(ex)))
             for handler_name in self.message_handlers:
                 instance = self.message_handlers[handler_name]()
+                instance.handler_name = handler_name
                 try:
                     instance.process_message(message, self)
                 except Exception as ex:

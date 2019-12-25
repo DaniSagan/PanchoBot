@@ -1,14 +1,7 @@
-import urllib.request
-import urllib.parse
-import http.client
-import json
 from typing import List, Optional, Dict
-
 import pickle
-
 import pathlib
-
-from db.database import Database, DataRow, DbSerializable, DataSet
+from db.database import DataRow, DbSerializable, DataSet
 
 
 class GetUpdatesResponse(object):
@@ -62,7 +55,7 @@ class Update(DbSerializable):
 class ChatState(object):
     def __init__(self):
         self.current_handler_name = None  # type: str
-        self.last_time = 0  # type: int
+        self.last_time = 0.  # type: float
         self.chat_id = 0  # type: int
         self.data = {}  # type: Dict
 
@@ -110,7 +103,7 @@ class Chat(DbSerializable):
             return None
         filename = folder.joinpath('{id}.pickle'.format(id=self.id_chat))
         if filename.exists():
-            with open(filename, 'rb') as fobj:
+            with open(str(filename), 'rb') as fobj:
                 data = pickle.load(fobj)
             return data
         else:
@@ -121,7 +114,7 @@ class Chat(DbSerializable):
         if not folder.exists():
             folder.mkdir()
         filename = folder.joinpath('{id}.pickle'.format(id=self.id_chat))
-        with open(filename, 'rb') as fobj:
+        with open(str(filename), 'wb') as fobj:
             pickle.dump(chat_state, fobj)
 
     def remove_chat_state(self):
