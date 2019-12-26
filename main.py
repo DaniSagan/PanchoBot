@@ -1,6 +1,9 @@
+import argparse
+
 import data
 import json
 import bot
+import ssl
 
 import messagehandlers.messagesender
 import messagehandlers.terminal
@@ -10,6 +13,14 @@ import messagehandlers.trivia
 import messagehandlers.newtoncalc
 
 if __name__ == '__main__':
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--no-ssl-cert', action='store_true')
+    args = parser.parse_args()
+
+    if args.no_ssl_cert:
+        ssl._create_default_https_context = ssl._create_unverified_context
+
     with open('token.txt') as fobj:
         token = fobj.read().strip()
     with open('bot_config.json') as fobj:

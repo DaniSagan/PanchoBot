@@ -2,6 +2,8 @@ import http.client
 from enum import Enum
 from typing import List
 
+import subprocess
+
 import utils
 from data import GetUpdatesResponse, Chat, Message, BotConfig, ChatState, CallbackQuery
 from db.database import Database, DataSet, DataRow, DataTable
@@ -172,6 +174,10 @@ class Bot(BotBase):
         self.database.save(sent_message)
         return sent_message
 
+    def send_document(self, chat: Chat, filename: str):
+        subprocess.call(['curl', '-F', 'chat_id=' + str(chat.id_chat), '-F', 'document=@"{x}"'.format(x=filename),
+                         self.base_url() + 'sendDocument'])
+
     def answer_callback_query(self, callback_query_id: str):
         self.call('answerCallbackQuery', {'callback_query_id': callback_query_id, 'text': 'Hello', 'show_alert': False})
 
@@ -192,6 +198,8 @@ class Bot(BotBase):
                 self.send_message(message.chat, 'OK', MessageStyle.NONE)
         elif message.text.lower() == 'quit':
             message.chat.remove_chat_state()
+        elif message.text.lower() == 'test':
+            self.send_document(message.chat, 'assets/test.png')
         elif message.text.lower() == 'help':
             if chat_state is None:
                 help_msgs = []
