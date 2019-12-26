@@ -53,7 +53,7 @@
       "name": "update",
       "columns": [
         {"name": "id_update", "type": "int"},
-        {"name": "id_message", "type": "int"}
+        {"name": "id_message", "type": "int?"}
       ],
       "primary_key": "id_update",
       "foreign_keys": [

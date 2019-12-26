@@ -18,12 +18,18 @@ class Column(object):
         self.type = ''  # type: str
         self.nullable = False  # type: bool
 
+    def __eq__(self, other) -> bool:
+        if isinstance(other, Column):
+            return self.name == other.name and self.type == other.type and self.nullable == other.nullable
+        else:
+            return False
+
     @staticmethod
     def from_json(json_object: Dict) -> 'Column':
         res = Column()  # type: Column
         res.name = json_object['name']
         json_type = json_object['type']  # type: str
-        res.type = json_type.replace('?', '')
+        res.type = Column.TYPES[json_type.replace('?', '')]
         res.nullable = json_type[-1] == '?'
         return res
 
@@ -107,7 +113,7 @@ class Table(object):
     def get_create_cmd(self):
         columns_create_str_list = []  # type: List[str]
         for column in self.columns:
-            col_str = '{n} {t}'.format(n=column.name, t=Column.TYPES[column.type])  # type: str
+            col_str = '{n} {t}'.format(n=column.name, t=column.type)  # type: str
             if not column.nullable:
                 col_str += ' NOT NULL'
             if self.primary_key is not None and self.primary_key == column.name:
@@ -173,6 +179,8 @@ class Database(object):
         for table in self.tables:
             if not self.table_exists(conn, table.name):
                 self.create_table(conn, table)
+            else:
+                self.update_table(conn, table)
         conn.close()
 
     def save(self, obj: DbSerializable):
@@ -189,6 +197,56 @@ class Database(object):
     def create_table(self, connection: sqlite3.Connection, table: Table) -> None:
         cursor = connection.cursor()  # type: sqlite3.Cursor
         cursor.execute(table.get_create_cmd())
+
+    def update_table(self, connection: sqlite3.Connection, table: Table) -> None:
+        # cursor = connection.cursor()
+        curr_table = self.get_current_table(connection, table.name)
+        update_needed = False  # type: bool
+        for curr_col in curr_table.columns:
+            defined_col = utils.first_or_default_where(table.columns, lambda c: c.name == curr_col.name)
+            if defined_col is not None and curr_col != defined_col:
+                update_needed = True
+        if update_needed:
+            self.recreate_table(connection, table)
+
+    def recreate_table(self, connection: sqlite3.Connection, table: Table):
+        curr_table = self.get_current_table(connection, table.name)
+        columns_str = ', '.join([c.name for c in curr_table.columns])
+        cursor = connection.cursor()
+        backup_table_name = table.name + '_bk'
+        sql_cmd = 'ALTER TABLE [{t}] RENAME TO [{bt}];'.format(t=table.name, bt=backup_table_name)
+        cursor.execute(sql_cmd)
+        cursor.execute(table.get_create_cmd())
+        cursor.execute('INSERT INTO [{t}]({c}) SELECT {c} FROM [{bt}];'.format(t=table.name, bt=backup_table_name, c=columns_str))
+        cursor.execute('DROP TABLE [{bt}];'.format(bt=backup_table_name))
+
+    def get_current_table(self, connection: sqlite3.Connection, table_name: str) -> Table:
+        res = Table()  # type: Table
+        res.name = table_name
+
+        cursor = connection.cursor()
+        cursor.execute('PRAGMA table_info(\'{t}\');'.format(t=table_name))
+        # cid_index = utils.first_index_where(cursor.description, lambda t: t[0] == 'cid')
+        # name_index = utils.first_index_where(cursor.description, lambda t: t[0] == 'name')
+        # type_index = utils.first_index_where(cursor.description, lambda t: t[0] == 'type')
+        # notnull_index = utils.first_index_where(cursor.description, lambda t: t[0] == 'notnull')
+        # pk_index = utils.first_index_where(cursor.description, lambda t: t[0] == 'pk')
+        col_indices = Database.get_column_indices_from_cursor(cursor)
+        row_tuples = cursor.fetchall()
+        for row_tuple in row_tuples:
+            column = Column()
+            column.name = row_tuple[col_indices['name']]
+            column.type = row_tuple[col_indices['type']]
+            column.nullable = row_tuple[col_indices['notnull']] == 0
+            res.columns.append(column)
+        return res
+
+    @staticmethod
+    def get_column_indices_from_cursor(cursor: sqlite3.Cursor) -> Dict:
+        res = {}
+        for i, desc_tuple in enumerate(cursor.description):
+            res[desc_tuple[0]] = i
+        return res
 
     # def insert(self, obj: DbSerializable):
     #     dtc = obj.to_data_table_collection()
@@ -225,7 +283,7 @@ class Database(object):
             columns = ', '.join([c.name for c in table.columns])  # type: str
             values_placeholder = ', '.join(['?' for _ in table.columns])  # type: str
             sql_cmd = 'INSERT into [{t}] ({c}) values ({v})'.format(t=table.name, c=columns,
-                                                                  v=values_placeholder)  # type: str
+                                                                    v=values_placeholder)  # type: str
             values = [table.row_to_tuple_for_insert(row) for row in data_table_collection.tables[table_name].rows.values()]
             cursor.executemany(sql_cmd, values)
 

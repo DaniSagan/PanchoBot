@@ -3,7 +3,7 @@ from typing import Dict
 from typing import List
 
 import utils
-from bot import MessageHandlerBase, BotBase
+from bot import MessageHandlerBase, BotBase, MessageStyle
 from data import Message, ChatState
 
 
@@ -13,10 +13,10 @@ class Xkcd(MessageHandlerBase):
         words = message.text.split(' ')  # type: List[str]
         if words[0].lower() == 'xkcd':
             if len(words) == 1:
-                bot.send_message(message.chat, self.get_image_url(self.get_latest_id()))
+                bot.send_message(message.chat, self.get_image_url(self.get_latest_id()), MessageStyle.NONE)
             elif words[1].lower() == 'random':
                 num = random.randint(1, self.get_latest_id())  # type: int
-                bot.send_message(message.chat, self.get_image_url(num))
+                bot.send_message(message.chat, self.get_image_url(num), MessageStyle.NONE)
 
     def get_latest_id(self) -> int:
         url = 'https://xkcd.com/info.0.json'  # type: str

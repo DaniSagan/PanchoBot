@@ -34,21 +34,24 @@ class Update(DbSerializable):
     def __init__(self):
         self.id_update = 0  # type: int
         self.message = None  # type: Message
+        self.callback_query = None  # type: CallbackQuery
 
     @staticmethod
     def from_json(json_obj) -> 'Update':
         res = Update()  # type: Update
         res.id_update = json_obj['update_id']
-        res.message = Message.from_json(json_obj['message'])
+        res.message = Message.from_json(json_obj['message']) if 'message' in json_obj else None
+        res.callback_query = CallbackQuery.from_json(json_obj['callback_query']) if 'callback_query' in json_obj else None
         return res
 
     def to_data_set(self) -> DataSet:
         res = DataSet()
         row = DataRow('update', self.id_update)
         row.put('id_update', self.id_update)
-        row.put('id_message', self.message.id_message)
+        row.put('id_message', self.message.id_message if self.message is not None else None)
         res.merge_row(row)
-        res.merge(self.message.to_data_set())
+        if self.message is not None:
+            res.merge(self.message.to_data_set())
         return res
 
 
@@ -170,12 +173,12 @@ class CallbackQuery(DbSerializable):
     @staticmethod
     def from_json(json_obj) -> 'CallbackQuery':
         res = CallbackQuery()  # type: CallbackQuery
-        res.id_callback_query = json_obj['id_callback_query']
+        res.id_callback_query = json_obj['id']
         res._from = User.from_json(json_obj['from'])
-        res.message = Message.from_json(json_obj['message'])
-        res.inline_message_id = json_obj['inline_message_id']
+        res.message = Message.from_json(json_obj['message']) if 'message' in json_obj else None
+        res.inline_message_id = json_obj.get('inline_message_id')
         res.chat_instance = json_obj['chat_instance']
-        res.data = json_obj['data']
+        res.data = json_obj.get('data')
         return res
 
     def to_data_set(self) -> DataSet:

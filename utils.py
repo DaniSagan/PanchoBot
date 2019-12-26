@@ -2,7 +2,7 @@ import http.client
 import json
 import urllib.request
 import urllib.parse
-from typing import Iterable, List, Dict
+from typing import Iterable, List, Dict, Callable
 
 
 def index_of(obj_list: Iterable, obj: object) -> List[int]:
@@ -15,6 +15,30 @@ def first_index_of(obj_list: Iterable, obj: object) -> int:
         return idx[0]
     else:
         raise RuntimeError('Item {o} not found in iterable'.format(o=obj))
+
+
+def first_index_where(obj_list: Iterable, fn: Callable[[object], bool]) -> int:
+    idx = [i for i, item in enumerate(obj_list) if fn(item)]
+    if len(idx) > 0:
+        return idx[0]
+    else:
+        raise RuntimeError('Item not found in iterable')
+
+
+def first_where(obj_list: Iterable, fn: Callable[[object], bool]) -> object:
+    items = [item for i, item in enumerate(obj_list) if fn(item)]
+    if len(items) > 0:
+        return items[0]
+    else:
+        raise RuntimeError('Item not found in iterable')
+
+
+def first_or_default_where(obj_list: Iterable, fn: Callable[[object], bool]) -> object:
+    items = [item for i, item in enumerate(obj_list) if fn(item)]
+    if len(items) > 0:
+        return items[0]
+    else:
+        return None
 
 
 def get_url_json(url: str, params: Dict = None) -> Dict:

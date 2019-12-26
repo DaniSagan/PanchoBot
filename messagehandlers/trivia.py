@@ -6,8 +6,34 @@ from typing import List
 import time
 
 import utils
-from bot import MessageHandlerBase, BotBase, InlineKeyboardMarkup
-from data import Message, ChatState
+from bot import MessageHandlerBase, BotBase, InlineKeyboardMarkup, MessageStyle
+from data import Message, ChatState, CallbackQuery
+
+CATEGORIES = {'any': 'Any',
+              '9': 'General Knowledge',
+              '10': 'Entertainment: Books',
+              '11': 'Entertainment: Film',
+              '12': 'Entertainment: Music',
+              '13': 'Entertainment: Musicals & Theatres',
+              '14': 'Entertainment: Television',
+              '15': 'Entertainment: Video Games',
+              '16': 'Entertainment: Board Games',
+              '17': 'Science & Nature',
+              '18': 'Science: Computers',
+              '19': 'Science: Mathematics',
+              '20': 'Mythology',
+              '21': 'Sports',
+              '22': 'Geography',
+              '23': 'History',
+              '24': 'Politics',
+              '25': 'Art',
+              '26': 'Celebrities',
+              '27': 'Animals',
+              '28': 'Vehicles',
+              '29': 'Entertainment: Comics',
+              '30': 'Science: Gadgets',
+              '31': 'Entertainment: Japanese Anime & Manga',
+              '32': 'Entertainment: Cartoon & Animations'}
 
 
 class TriviaQuestion(object):
@@ -55,6 +81,25 @@ class Trivia(MessageHandlerBase):
         else:
             self.process_new_question(message, bot)
 
+    def process_callback_query(self, callback_query: CallbackQuery, bot: BotBase, chat_state: ChatState = None):
+        if chat_state is None:
+            pass
+        else:
+            try:
+                given_answer_idx = int(callback_query.data) - 1  # type: int
+                answers = chat_state.data['answers']  # type: AnswerArrangement
+                if given_answer_idx == answers.correct_answer_index:
+                    bot.send_message(callback_query.message.chat, 'Correct!!', MessageStyle.NONE)
+                else:
+                    bot.send_message(callback_query.message.chat,
+                                     'WRONG. The answer was:\n{k}. {a}'.format(k=answers.correct_answer_index + 1,
+                                                                               a=answers.answers[
+                                                                                   answers.correct_answer_index]), MessageStyle.NONE)
+                bot.answer_callback_query(callback_query.id_callback_query)
+                callback_query.message.chat.remove_chat_state()
+            except Exception as ex:
+                raise RuntimeError('Could not process answer: ' + str(ex))
+
     def process_new_question(self, message: Message, bot: BotBase):
         words = message.text.split(' ')
         if words[0].lower() == 'trivia':
@@ -63,7 +108,10 @@ class Trivia(MessageHandlerBase):
             question = TriviaQuestion.from_json(json_obj['results'][0])  # type: TriviaQuestion
             answers = AnswerArrangement.generate_random_from_question(question)  # type: AnswerArrangement
             keyboard = InlineKeyboardMarkup.from_str_list([str(k+1) for k in range(len(answers.answers))])  # type: InlineKeyboardMarkup
-            bot.send_message_with_inline_keyboard(message.chat, self.get_question_str(question, answers), keyboard)
+            bot.send_message_with_inline_keyboard(message.chat,
+                                                  self.get_question_str(question, answers),
+                                                  MessageStyle.NONE,
+                                                  keyboard)
 
             state = ChatState()
             state.current_handler_name = self.handler_name
@@ -78,12 +126,13 @@ class Trivia(MessageHandlerBase):
             given_answer_idx = int(message.text) - 1  # type: int
             answers = chat_state.data['answers']  # type: AnswerArrangement
             if given_answer_idx == answers.correct_answer_index:
-                bot.send_message(message.chat, 'Correct!!')
+                bot.send_message(message.chat, 'Correct!!', MessageStyle.NONE)
             else:
                 bot.send_message(message.chat,
                                  'WRONG. The answer was:\n{k}. {a}'.format(k=answers.correct_answer_index+1,
                                                                            a=answers.answers[
-                                                                              answers.correct_answer_index]))
+                                                                              answers.correct_answer_index]),
+                                 MessageStyle.NONE)
             message.chat.remove_chat_state()
         except Exception as ex:
             raise RuntimeError('Could not process answer: ' + str(ex))

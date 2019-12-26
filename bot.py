@@ -1,8 +1,9 @@
 import http.client
+from enum import Enum
 from typing import List
 
 import utils
-from data import GetUpdatesResponse, Chat, Message, BotConfig, ChatState
+from data import GetUpdatesResponse, Chat, Message, BotConfig, ChatState, CallbackQuery
 from db.database import Database, DataSet, DataRow, DataTable
 import json
 from typing import Dict, Optional
@@ -42,7 +43,14 @@ class InlineKeyboardMarkup(object):
         return {'inline_keyboard': [[button.to_json() for button in row] for row in self.inline_keyboard]}
 
 
+class MessageStyle(Enum):
+    NONE = 0
+    MARKDOWN = 1
+    HTML = 2
+
+
 class BotBase(object):
+
     def __init__(self):
         self.database = None  # type: Database
         self.running = True
@@ -50,10 +58,13 @@ class BotBase(object):
     def get_updates(self) -> GetUpdatesResponse:
         raise NotImplementedError()
 
-    def send_message(self, chat: Chat, text: str) -> Message:
+    def send_message(self, chat: Chat, text: str, style: MessageStyle) -> Message:
         raise NotImplementedError()
 
-    def send_message_with_inline_keyboard(self, chat: Chat, text: str, inline_keyboard: InlineKeyboardMarkup) -> Message:
+    def send_message_with_inline_keyboard(self, chat: Chat, text: str, style: MessageStyle, inline_keyboard: InlineKeyboardMarkup) -> Message:
+        raise NotImplementedError()
+
+    def answer_callback_query(self, callback_query_id: str) -> bool:
         raise NotImplementedError()
 
     def stop(self):
@@ -66,6 +77,9 @@ class MessageHandlerBase(object):
 
     def process_message(self, message: Message, bot: BotBase, chat_state: ChatState = None):
         raise NotImplementedError()
+
+    def process_callback_query(self, callback_query: CallbackQuery, bot: BotBase, chat_state: ChatState = None):
+        bot.send_message(callback_query.message.chat, 'process_callback_query not defined for handler ' + self.handler_name, MessageStyle.NONE)
 
     @staticmethod
     def get_help() -> str:
@@ -91,7 +105,10 @@ class Bot(BotBase):
             print('Waiting for messages...')
             response = self.get_updates()  # type: GetUpdatesResponse
             for update in response.result:
-                self.on_new_message(update.message)
+                if update.message is not None:
+                    self.on_new_message(update.message)
+                if update.callback_query is not None:
+                    self.on_new_callback_query(update.callback_query)
         print('Stopped')
 
     def base_url(self) -> str:
@@ -116,7 +133,6 @@ class Bot(BotBase):
     def get_updates(self) -> GetUpdatesResponse:
 
         last_update_id = self.get_last_update_id()  # type: Optional[int]
-
         if last_update_id is None:
             json_resp = self.call('getUpdates', {"timeout": self.config.get_updates_timeout})
         else:
@@ -142,19 +158,22 @@ class Bot(BotBase):
 
         return res
 
-    def send_message(self, chat: Chat, text: str) -> Message:
+    def send_message(self, chat: Chat, text: str, style: MessageStyle) -> Message:
         message_params = {'chat_id': chat.id_chat, 'text': text}
         resp = self.call('sendMessage', message_params)
         sent_message = Message.from_json(resp['result'])
         self.database.save(sent_message)
         return sent_message
 
-    def send_message_with_inline_keyboard(self, chat: Chat, text: str, inline_keyboard: InlineKeyboardMarkup) -> Message:
+    def send_message_with_inline_keyboard(self, chat: Chat, text: str, style: MessageStyle, inline_keyboard: InlineKeyboardMarkup) -> Message:
         message_params = {'chat_id': chat.id_chat, 'text': text, 'reply_markup': inline_keyboard.to_json()}
         resp = self.call('sendMessage', message_params)
         sent_message = Message.from_json(resp['result'])
         self.database.save(sent_message)
         return sent_message
+
+    def answer_callback_query(self, callback_query_id: str):
+        self.call('answerCallbackQuery', {'callback_query_id': callback_query_id, 'text': 'Hello', 'show_alert': False})
 
     def get_last_update_id(self) -> Optional[int]:
         connection = self.database.create_connection()
@@ -168,9 +187,9 @@ class Bot(BotBase):
         chat_state = message.chat.retrieve_chat_state()
         if message.text.lower() == 'status':
             if chat_state is not None:
-                self.send_message(message.chat, 'Current handler: {h}'.format(h=chat_state.current_handler_name))
+                self.send_message(message.chat, 'Current handler: {h}'.format(h=chat_state.current_handler_name), MessageStyle.NONE)
             else:
-                self.send_message(message.chat, 'OK')
+                self.send_message(message.chat, 'OK', MessageStyle.NONE)
         elif message.text.lower() == 'quit':
             message.chat.remove_chat_state()
         elif message.text.lower() == 'help':
@@ -178,10 +197,10 @@ class Bot(BotBase):
                 help_msgs = []
                 for handler_name in self.message_handlers:
                     help_msgs.append(handler_name + ':\n' + self.message_handlers[handler_name].get_help())
-                self.send_message(message.chat, '\n\n'.join(help_msgs))
+                self.send_message(message.chat, '\n\n'.join(help_msgs), MessageStyle.NONE)
             else:
                 help_msg = self.message_handlers[chat_state.current_handler_name].get_help()
-                self.send_message(message.chat, chat_state.current_handler_name + ':\n' + help_msg)
+                self.send_message(message.chat, chat_state.current_handler_name + ':\n' + help_msg, MessageStyle.NONE)
         else:
             if chat_state is not None:
                 instance = self.message_handlers[chat_state.current_handler_name]()
@@ -189,11 +208,23 @@ class Bot(BotBase):
                 try:
                     instance.process_message(message, self, chat_state)
                 except Exception as ex:
-                    self.send_message(message.chat, 'Error: {e}'.format(e=str(ex)))
+                    self.send_message(message.chat, 'Error: {e}'.format(e=str(ex)), MessageStyle.NONE)
             for handler_name in self.message_handlers:
                 instance = self.message_handlers[handler_name]()
                 instance.handler_name = handler_name
                 try:
                     instance.process_message(message, self)
                 except Exception as ex:
-                    self.send_message(message.chat, 'Error: {e}'.format(e=str(ex)))
+                    self.send_message(message.chat, 'Error: {e}'.format(e=str(ex)), MessageStyle.NONE)
+
+    def on_new_callback_query(self, callback_query: CallbackQuery):
+        chat_state = callback_query.message.chat.retrieve_chat_state()
+        if chat_state is not None:
+            instance = self.message_handlers[chat_state.current_handler_name]()
+            instance.handler_name = chat_state.current_handler_name
+            try:
+                instance.process_callback_query(callback_query, self, chat_state)
+            except Exception as ex:
+                self.send_message(callback_query.message.chat, 'Error: {e}'.format(e=str(ex)), MessageStyle.NONE)
+        else:
+            self.send_message(callback_query.message.chat, 'Could not retrieve chat state', MessageStyle.NONE)

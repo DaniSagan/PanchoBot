@@ -1,8 +1,9 @@
 import time
 from typing import Dict
+from typing import List
 
 import utils
-from bot import MessageHandlerBase, BotBase
+from bot import MessageHandlerBase, BotBase, MessageStyle
 from data import Message, ChatState
 
 
@@ -37,16 +38,16 @@ class NewtonCalc(MessageHandlerBase):
         json_obj = utils.get_url_json('https://newton.now.sh/{o}/{e}'.format(o=operation, e=expression))
         res = NewtonCalcResponse.from_json(json_obj)  # type: NewtonCalcResponse
         if res.error:
-            bot.send_message(message.chat, 'Error: ' + res.error)
+            bot.send_message(message.chat, 'Error: ' + res.error, MessageStyle.NONE)
         else:
             result_msg = res.result  # type: str
-            bot.send_message(message.chat, result_msg)
+            bot.send_message(message.chat, result_msg, MessageStyle.NONE)
 
     def process_new_message(self, message: Message, bot: BotBase):
         words = message.text.split(' ')
         if words[0].lower() == 'newton':
 
-            bot.send_message(message.chat, 'Newton Calc. Give me an operation and an expression. Type \'quit\' to exit:')
+            bot.send_message(message.chat, 'Newton Calc. Give me an operation and an expression. Type \'quit\' to exit:', MessageStyle.NONE)
 
             state = ChatState()
             state.last_time = time.time()
