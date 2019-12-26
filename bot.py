@@ -1,10 +1,45 @@
 import http.client
+from typing import List
+
+import utils
 from data import GetUpdatesResponse, Chat, Message, BotConfig, ChatState
 from db.database import Database, DataSet, DataRow, DataTable
 import json
 from typing import Dict, Optional
 import urllib.request
 import urllib.parse
+
+
+class InlineKeyboardButton(object):
+    def __init__(self):
+        self.text = ''  # type: str
+        self.url = ''  # type: str
+        self.callback_data = ''  # type: str
+
+    def to_json(self) -> Dict:
+        if self.url and not self.callback_data:
+            return {'text': self.text, 'url': self.url}
+        elif not self.url and self.callback_data:
+            return {'text': self.text, 'callback_data': self.callback_data}
+
+
+class InlineKeyboardMarkup(object):
+    def __init__(self):
+        self.inline_keyboard = []  # type: List[List[InlineKeyboardButton]]
+
+    @staticmethod
+    def from_str_list(str_list: List[str]) -> 'InlineKeyboardMarkup':
+        res = InlineKeyboardMarkup()
+        res.inline_keyboard.append([])
+        for s in str_list:
+            button = InlineKeyboardButton()
+            button.text = s
+            button.callback_data = s
+            res.inline_keyboard[0].append(button)
+        return res
+
+    def to_json(self) -> Dict:
+        return {'inline_keyboard': [[button.to_json() for button in row] for row in self.inline_keyboard]}
 
 
 class BotBase(object):
@@ -18,6 +53,9 @@ class BotBase(object):
     def send_message(self, chat: Chat, text: str) -> Message:
         raise NotImplementedError()
 
+    def send_message_with_inline_keyboard(self, chat: Chat, text: str, inline_keyboard: InlineKeyboardMarkup) -> Message:
+        raise NotImplementedError()
+
     def stop(self):
         self.running = False
 
@@ -28,6 +66,10 @@ class MessageHandlerBase(object):
 
     def process_message(self, message: Message, bot: BotBase, chat_state: ChatState = None):
         raise NotImplementedError()
+
+    @staticmethod
+    def get_help() -> str:
+        return 'Help message not defined.'
 
 
 class Bot(BotBase):
@@ -57,7 +99,7 @@ class Bot(BotBase):
 
     def call(self, action: str, params: Dict = None) -> Dict:
         if params is not None:
-            req = urllib.request.Request(self.base_url() + action, urllib.parse.urlencode(params).encode('ascii'))
+            req = urllib.request.Request(self.base_url() + action, urllib.parse.urlencode(utils.dict_to_url_params(params)).encode('ascii'))
         else:
             req = urllib.request.Request(self.base_url() + action)
         with urllib.request.urlopen(req) as response:  # type:  http.client.HTTPResponse
@@ -75,7 +117,10 @@ class Bot(BotBase):
 
         last_update_id = self.get_last_update_id()  # type: Optional[int]
 
-        json_resp = self.call('getUpdates', {"timeout": self.config.get_updates_timeout, "offset": last_update_id+1})
+        if last_update_id is None:
+            json_resp = self.call('getUpdates', {"timeout": self.config.get_updates_timeout})
+        else:
+            json_resp = self.call('getUpdates', {"timeout": self.config.get_updates_timeout, "offset": last_update_id+1})
         res = GetUpdatesResponse.from_json(json_resp)
 
         if len(res.result) == 0:
@@ -104,6 +149,13 @@ class Bot(BotBase):
         self.database.save(sent_message)
         return sent_message
 
+    def send_message_with_inline_keyboard(self, chat: Chat, text: str, inline_keyboard: InlineKeyboardMarkup) -> Message:
+        message_params = {'chat_id': chat.id_chat, 'text': text, 'reply_markup': inline_keyboard.to_json()}
+        resp = self.call('sendMessage', message_params)
+        sent_message = Message.from_json(resp['result'])
+        self.database.save(sent_message)
+        return sent_message
+
     def get_last_update_id(self) -> Optional[int]:
         connection = self.database.create_connection()
         dt = self.database.query(connection, 'parameter', 'last_update_id', False)  # type: DataTable
@@ -121,6 +173,15 @@ class Bot(BotBase):
                 self.send_message(message.chat, 'OK')
         elif message.text.lower() == 'quit':
             message.chat.remove_chat_state()
+        elif message.text.lower() == 'help':
+            if chat_state is None:
+                help_msgs = []
+                for handler_name in self.message_handlers:
+                    help_msgs.append(handler_name + ':\n' + self.message_handlers[handler_name].get_help())
+                self.send_message(message.chat, '\n\n'.join(help_msgs))
+            else:
+                help_msg = self.message_handlers[chat_state.current_handler_name].get_help()
+                self.send_message(message.chat, chat_state.current_handler_name + ':\n' + help_msg)
         else:
             if chat_state is not None:
                 instance = self.message_handlers[chat_state.current_handler_name]()

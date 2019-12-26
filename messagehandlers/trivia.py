@@ -6,7 +6,7 @@ from typing import List
 import time
 
 import utils
-from bot import MessageHandlerBase, BotBase
+from bot import MessageHandlerBase, BotBase, InlineKeyboardMarkup
 from data import Message, ChatState
 
 
@@ -62,7 +62,8 @@ class Trivia(MessageHandlerBase):
             json_obj = utils.get_url_json('https://opentdb.com/api.php?amount=1')
             question = TriviaQuestion.from_json(json_obj['results'][0])  # type: TriviaQuestion
             answers = AnswerArrangement.generate_random_from_question(question)  # type: AnswerArrangement
-            bot.send_message(message.chat, self.get_question_str(question, answers))
+            keyboard = InlineKeyboardMarkup.from_str_list([str(k+1) for k in range(len(answers.answers))])  # type: InlineKeyboardMarkup
+            bot.send_message_with_inline_keyboard(message.chat, self.get_question_str(question, answers), keyboard)
 
             state = ChatState()
             state.current_handler_name = self.handler_name

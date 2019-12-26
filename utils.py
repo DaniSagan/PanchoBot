@@ -34,3 +34,12 @@ def get_url_json(url: str, params: Dict = None) -> Dict:
     print('Received response: {r}'.format(r=received_str))
     return json.loads(received_str)
 
+
+def dict_to_url_params(value: Dict) -> str:
+    res = {}
+    for key in value:
+        if isinstance(value[key], dict):
+            res[key] = json.dumps(value[key])
+        else:
+            res[key] = value[key]
+    return res

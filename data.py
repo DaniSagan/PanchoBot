@@ -158,6 +158,41 @@ class Message(DbSerializable):
         return res
 
 
+class CallbackQuery(DbSerializable):
+    def __init__(self):
+        self.id_callback_query = ''  # type: str
+        self._from = None  # type: User
+        self.message = None  # type: Message
+        self.inline_message_id = None  # type: str
+        self.chat_instance = None  # type: str
+        self.data = None  # type: str
+
+    @staticmethod
+    def from_json(json_obj) -> 'CallbackQuery':
+        res = CallbackQuery()  # type: CallbackQuery
+        res.id_callback_query = json_obj['id_callback_query']
+        res._from = User.from_json(json_obj['from'])
+        res.message = Message.from_json(json_obj['message'])
+        res.inline_message_id = json_obj['inline_message_id']
+        res.chat_instance = json_obj['chat_instance']
+        res.data = json_obj['data']
+        return res
+
+    def to_data_set(self) -> DataSet:
+        res = DataSet()
+        row = DataRow('callback_query', self.id_callback_query)
+        row.put('id_callback_query', self.id_callback_query)
+        row.put('id_user', self._from.id_user)
+        row.put('id_message', self.message.id_message)
+        row.put('inline_message_id', self.inline_message_id)
+        row.put('chat_instance', self.chat_instance)
+        row.put('data', self.data)
+        res.merge_row(row)
+        res.merge(self._from.to_data_set())
+        res.merge(self.message.to_data_set())
+        return res
+
+
 class User(DbSerializable):
     def __init__(self):
         self.id_user = 0  # type: int
