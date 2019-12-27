@@ -1,6 +1,8 @@
 from typing import List, Optional, Dict
 import pickle
 import pathlib
+
+import utils
 from db.database import DataRow, DbSerializable, DataSet
 
 
@@ -21,12 +23,14 @@ class BotConfig(object):
     def __init__(self):
         self.database_definition_file = None  # type: Optional[str]
         self.get_updates_timeout = 0  # type: int
+        self.tokens = {}  # type: Dict[str, str]
 
     @staticmethod
     def from_json(json_object: Dict) -> 'BotConfig':
         res = BotConfig()  # type: BotConfig
         res.database_definition_file = json_object.get('database_definition_file')
         res.get_updates_timeout = json_object.get('get_updates_timeout')
+        res.tokens = utils.get_file_json(json_object['token_file'])
         return res
 
 

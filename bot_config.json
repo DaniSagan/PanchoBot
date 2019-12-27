@@ -1,4 +1,5 @@
 {
   "database_definition_file": "db_definition.json",
-  "get_updates_timeout": 60
+  "get_updates_timeout": 60,
+  "token_file": "dat/bot/tokens.json"
 }

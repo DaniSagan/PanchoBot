@@ -59,6 +59,13 @@ def get_url_json(url: str, params: Dict = None) -> Dict:
     return json.loads(received_str)
 
 
+def get_file_json(filename: str) -> Dict:
+    res = None  # type: Dict
+    with open(filename) as fobj:
+        res = json.loads(fobj.read().strip())
+    return res
+
+
 def dict_to_url_params(value: Dict) -> str:
     res = {}
     for key in value:

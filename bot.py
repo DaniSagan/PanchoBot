@@ -51,7 +51,8 @@ class BotBase(object):
 
     def __init__(self):
         self.database = None  # type: Database
-        self.running = True
+        self.running = True  # type: bool
+        self.tokens = {}  # type: Dict[str, str]
 
     def get_updates(self) -> GetUpdatesResponse:
         raise NotImplementedError()
@@ -86,9 +87,9 @@ class MessageHandlerBase(object):
 
 class Bot(BotBase):
 
-    def __init__(self, token: str, config: BotConfig):
+    def __init__(self, config: BotConfig):
         BotBase.__init__(self)
-        self.token = token  # type: str
+        self.token = config.tokens['telegram']  # type: str
         self.config = config  # type: BotConfig
         self.message_handlers = {}  # type: Dict[str, type]
 

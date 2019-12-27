@@ -2,5 +2,6 @@
 __pycache__/
 venv/
 
+dat/
 token.txt
 pancho.sqlite
