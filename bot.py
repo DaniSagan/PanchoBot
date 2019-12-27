@@ -1,6 +1,5 @@
 import http.client
-from enum import Enum
-from typing import List
+from typing import List, Union
 
 import subprocess
 
@@ -11,6 +10,9 @@ import json
 from typing import Dict, Optional
 import urllib.request
 import urllib.parse
+import urllib.error
+
+from textformatting import TextFormatter, MessageStyle
 
 
 class InlineKeyboardButton(object):
@@ -45,12 +47,6 @@ class InlineKeyboardMarkup(object):
         return {'inline_keyboard': [[button.to_json() for button in row] for row in self.inline_keyboard]}
 
 
-class MessageStyle(Enum):
-    NONE = 0
-    MARKDOWN = 1
-    HTML = 2
-
-
 class BotBase(object):
 
     def __init__(self):
@@ -60,7 +56,7 @@ class BotBase(object):
     def get_updates(self) -> GetUpdatesResponse:
         raise NotImplementedError()
 
-    def send_message(self, chat: Chat, text: str, style: MessageStyle) -> Message:
+    def send_message(self, chat: Chat, text: Union[str, TextFormatter], style: MessageStyle) -> Message:
         raise NotImplementedError()
 
     def send_message_with_inline_keyboard(self, chat: Chat, text: str, style: MessageStyle, inline_keyboard: InlineKeyboardMarkup) -> Message:
@@ -121,12 +117,17 @@ class Bot(BotBase):
             req = urllib.request.Request(self.base_url() + action, urllib.parse.urlencode(utils.dict_to_url_params(params)).encode('ascii'))
         else:
             req = urllib.request.Request(self.base_url() + action)
-        with urllib.request.urlopen(req) as response:  # type:  http.client.HTTPResponse
-            if response.status == 200:
-                received_bytes = response.read()  # type: bytes
-                received_str = received_bytes.decode("utf8")  # type: str
-            else:
-                raise RuntimeError('Could not execute action {a}. Reason: {r}'.format(a=action, r=response.reason))
+        try:
+            with urllib.request.urlopen(req) as response:  # type:  http.client.HTTPResponse
+                if response.status == 200:
+                    received_bytes = response.read()  # type: bytes
+                    received_str = received_bytes.decode("utf8")  # type: str
+                else:
+                    raise RuntimeError('Could not execute action {a}. Reason: {r}'.format(a=action, r=response.reason))
+        except urllib.error.URLError as e:
+            received_bytes = e.read()  # type: bytes
+            received_obj = json.loads(received_bytes.decode("utf8"))
+            raise RuntimeError('Could not execute action {a}. Error: {e}. Reason: {r}'.format(a=action, e=received_obj['error_code'], r=received_obj['description']))
 
         # noinspection PyUnboundLocalVariable
         print('Received response: {r}'.format(r=received_str))
@@ -160,8 +161,15 @@ class Bot(BotBase):
 
         return res
 
-    def send_message(self, chat: Chat, text: str, style: MessageStyle) -> Message:
-        message_params = {'chat_id': chat.id_chat, 'text': text}
+    def send_message(self, chat: Chat, text: Union[str, TextFormatter], style: MessageStyle) -> Message:
+        if type(text) is TextFormatter:
+            message_params = {'chat_id': chat.id_chat, 'text': text.format(style)}
+        else:
+            message_params = {'chat_id': chat.id_chat, 'text': text}
+        if style == MessageStyle.MARKDOWN:
+            message_params['parse_mode'] = 'Markdown'
+        elif style == MessageStyle.HTML:
+            message_params['parse_mode'] = 'HTML'
         resp = self.call('sendMessage', message_params)
         sent_message = Message.from_json(resp['result'])
         self.database.save(sent_message)
@@ -169,6 +177,10 @@ class Bot(BotBase):
 
     def send_message_with_inline_keyboard(self, chat: Chat, text: str, style: MessageStyle, inline_keyboard: InlineKeyboardMarkup) -> Message:
         message_params = {'chat_id': chat.id_chat, 'text': text, 'reply_markup': inline_keyboard.to_json()}
+        if style == MessageStyle.MARKDOWN:
+            message_params['parse_mode'] = 'Markdown'
+        elif style == MessageStyle.HTML:
+            message_params['parse_mode'] = 'HTML'
         resp = self.call('sendMessage', message_params)
         sent_message = Message.from_json(resp['result'])
         self.database.save(sent_message)
