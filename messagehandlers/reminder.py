@@ -18,6 +18,15 @@ class RemindData(object):
 
 
 class ReminderHandler(MessageHandlerBase):
+    @staticmethod
+    def get_help() -> TextFormatter:
+        res = TextFormatter()
+        res.italic('\U00002328 Remind <interval> <message>').new_line().normal('Set a reminder for <interval> time.').new_line().new_line()
+        res.normal('Examples:').new_line()
+        res.italic('Remind 5m Turn off oven.').new_line()
+        res.italic('Remind 1h30m Do homework.').new_line()
+        return res
+
     def process_message(self, message: Message, bot: BotBase, chat_state: ChatState = None) -> None:
         wp = WordParser.from_str('cmd:w interval:t msg:*w')
         parse_res = wp.match(message.text)

@@ -132,6 +132,8 @@ class WordParser(object):
             res.success = False
         except IndexError:
             res.success = False
+        except Exception:
+            res.success = False
         return res
 
     @staticmethod

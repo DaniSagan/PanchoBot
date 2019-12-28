@@ -5,6 +5,19 @@ from typing import List
 import utils
 from bot import MessageHandlerBase, BotBase, MessageStyle
 from data import Message, ChatState
+from textformatting import TextFormatter
+
+OPERATION_EXAMPLES = {
+    'simplify': 'simplify 2^2+2(2)',
+    'factor': 'factor x^2 + 2x',
+    'derive': 'derive x^2+2x',
+    'integrate': 'integrate x^2+2x',
+    'zeroes': 'zeroes x^2+2x',
+    'tangent': 'tangent 2|x^3',
+    'area': 'area 2:4|x^3',
+    'cos': 'cos/pi',
+    'sin': 'sin/0'
+}
 
 
 class NewtonCalcResponse(object):
@@ -25,6 +38,20 @@ class NewtonCalcResponse(object):
 
 
 class NewtonCalc(MessageHandlerBase):
+    @staticmethod
+    def get_help() -> TextFormatter:
+        res = TextFormatter()  # type: TextFormatter
+        res.italic('\U00002328 Newton').new_line()
+        res.normal('Start a new session.').new_line().new_line()
+        res.italic('\U00002328 <operation> <expression>').new_line()
+        res.normal('Apply <operation> on <expression>.').new_line().new_line()
+        res.normal('Examples:').new_line()
+        for operation in OPERATION_EXAMPLES:
+            res.italic('  ' + OPERATION_EXAMPLES[operation]).new_line()
+        res.new_line()
+        res.normal('Type "Quit" to exit')
+        return res
+
     def process_message(self, message: Message, bot: BotBase, chat_state: ChatState = None):
         if chat_state is not None:
             self.process_state(message, bot, chat_state)

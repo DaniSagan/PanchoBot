@@ -125,6 +125,14 @@ def seconds_to_duration(s: int) -> str:
         res += '{}s'.format(seconds)
     return res
 
+
+def is_float(s: str) -> bool:
+    try:
+        float(s)
+        return True
+    except ValueError:
+        return False
+
 # 'cmd:w num:n msg:*w'
 # def parse_words(input_str: str, word_group_str: str) -> Dict[str, object]:
 #     words = list(map(str.lower, input_str.split(' ')))
