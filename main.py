@@ -1,5 +1,7 @@
 import argparse
 
+import logging
+
 import data
 import json
 import bot
@@ -12,8 +14,12 @@ import messagehandlers.exchangerates
 import messagehandlers.trivia
 import messagehandlers.newtoncalc
 import messagehandlers.oeis
+import messagehandlers.reminder
+import messagehandlers.tua
 
 if __name__ == '__main__':
+
+    logging.basicConfig(level=logging.DEBUG)
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--no-ssl-cert', action='store_true')
@@ -34,5 +40,7 @@ if __name__ == '__main__':
     pancho_bot.message_handlers['trivia'] = messagehandlers.trivia.Trivia
     pancho_bot.message_handlers['newton'] = messagehandlers.newtoncalc.NewtonCalc
     pancho_bot.message_handlers['oeis'] = messagehandlers.oeis.OeisHandler
+    pancho_bot.message_handlers['remind'] = messagehandlers.reminder.ReminderHandler
+    pancho_bot.message_handlers['tua'] = messagehandlers.tua.TuaHandler
 
     pancho_bot.run()

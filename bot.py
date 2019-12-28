@@ -3,6 +3,10 @@ from typing import List, Union
 
 import subprocess
 
+import logging
+
+import time
+
 import utils
 from data import GetUpdatesResponse, Chat, Message, BotConfig, ChatState, CallbackQuery
 from db.database import Database, DataSet, DataRow, DataTable
@@ -81,8 +85,12 @@ class MessageHandlerBase(object):
         bot.send_message(callback_query.message.chat, 'process_callback_query not defined for handler ' + self.handler_name, MessageStyle.NONE)
 
     @staticmethod
-    def get_help() -> str:
-        return 'Help message not defined.'
+    def get_help() -> TextFormatter:
+        return TextFormatter.instance().normal('Help message not defined.')
+
+    @staticmethod
+    def get_info() -> TextFormatter:
+        return TextFormatter.instance().normal('Undefined handler')
 
 
 class Bot(BotBase):
@@ -102,12 +110,16 @@ class Bot(BotBase):
     def run(self):
         while self.running:
             print('Waiting for messages...')
-            response = self.get_updates()  # type: GetUpdatesResponse
-            for update in response.result:
-                if update.message is not None:
-                    self.on_new_message(update.message)
-                if update.callback_query is not None:
-                    self.on_new_callback_query(update.callback_query)
+            try:
+                response = self.get_updates()  # type: GetUpdatesResponse
+                for update in response.result:
+                    if update.message is not None:
+                        self.on_new_message(update.message)
+                    if update.callback_query is not None:
+                        self.on_new_callback_query(update.callback_query)
+            except RuntimeError as e:
+                logging.exception(e)
+                time.sleep(60)
         print('Stopped')
 
     def base_url(self) -> str:
@@ -215,13 +227,18 @@ class Bot(BotBase):
             self.send_document(message.chat, 'assets/test.png')
         elif message.text.lower() == 'help':
             if chat_state is None:
-                help_msgs = []
+                tf = TextFormatter()  # TextFormatter
                 for handler_name in self.message_handlers:
-                    help_msgs.append(handler_name + ':\n' + self.message_handlers[handler_name].get_help())
-                self.send_message(message.chat, '\n\n'.join(help_msgs), MessageStyle.NONE)
+                    tf.append(TextFormatter.instance().bold(handler_name).new_line()
+                              .append(self.message_handlers[handler_name].get_help()).new_line()
+                              .normal('\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_').new_line())
+                self.send_message(message.chat, tf, MessageStyle.MARKDOWN)
             else:
-                help_msg = self.message_handlers[chat_state.current_handler_name].get_help()
-                self.send_message(message.chat, chat_state.current_handler_name + ':\n' + help_msg, MessageStyle.NONE)
+                tf = TextFormatter()  # TextFormatter
+                tf.append(TextFormatter.instance().bold(chat_state.current_handler_name).new_line()
+                          .append(self.message_handlers[chat_state.current_handler_name].get_help()).new_line()
+                          .normal('\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_').new_line())
+                self.send_message(message.chat, tf, MessageStyle.MARKDOWN)
         else:
             if chat_state is not None:
                 instance = self.message_handlers[chat_state.current_handler_name]()
@@ -237,6 +254,7 @@ class Bot(BotBase):
                     instance.process_message(message, self)
                 except Exception as ex:
                     self.send_message(message.chat, 'Error: {e}'.format(e=str(ex)), MessageStyle.NONE)
+                    logging.exception(ex)
 
     def on_new_callback_query(self, callback_query: CallbackQuery):
         chat_state = callback_query.message.chat.retrieve_chat_state()

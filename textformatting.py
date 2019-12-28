@@ -75,6 +75,10 @@ class TextFormatter(object):
         self.items.append(NormalText(text))
         return self
 
+    def new_line(self) -> 'TextFormatter':
+        self.items.append(NormalText('\n'))
+        return self
+
     def bold(self, text) -> 'TextFormatter':
         self.items.append(BoldText(text))
         return self
@@ -85,6 +89,10 @@ class TextFormatter(object):
 
     def inline_code(self, text) -> 'TextFormatter':
         self.items.append(InlineCode(text))
+        return self
+
+    def append(self, other: 'TextFormatter') -> 'TextFormatter':
+        self.items.extend(other.items)
         return self
 
     def format(self, style: MessageStyle) -> str:
