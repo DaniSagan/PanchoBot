@@ -204,7 +204,7 @@ class Bot(BotBase):
                          self.base_url() + 'sendDocument'])
 
     def answer_callback_query(self, callback_query_id: str):
-        self.call('answerCallbackQuery', {'callback_query_id': callback_query_id, 'text': 'Hello', 'show_alert': False})
+        self.call('answerCallbackQuery', {'callback_query_id': callback_query_id})
 
     def get_last_update_id(self) -> Optional[int]:
         connection = self.database.create_connection()

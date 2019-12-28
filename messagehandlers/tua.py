@@ -140,9 +140,9 @@ class TuaHandler(MessageHandlerBase):
     @staticmethod
     def get_help() -> TextFormatter:
         res = TextFormatter()
-        res.italic('Tua lines').new_line().normal('Show all lines.').new_line().new_line()
-        res.italic('Tua line <line>').new_line().normal('Show all stops for <line>.').new_line().new_line()
-        res.italic('Tua update').new_line().normal('Update line info.')
+        res.italic('\U00002328 Tua lines').new_line().normal('Show all lines.').new_line().new_line()
+        res.italic('\U00002328 Tua line <line>').new_line().normal('Show all stops for <line>.').new_line().new_line()
+        res.italic('\U00002328 Tua update').new_line().normal('Update line info.')
         return res
 
     def process_message(self, message: Message, bot: BotBase, chat_state: ChatState = None):

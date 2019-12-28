@@ -6,8 +6,9 @@ from typing import List
 import time
 
 import utils
-from bot import MessageHandlerBase, BotBase, InlineKeyboardMarkup, MessageStyle
-from data import Message, ChatState, CallbackQuery
+from bot import MessageHandlerBase, BotBase, InlineKeyboardMarkup, MessageStyle, InlineKeyboardButton
+from data import Message, ChatState, CallbackQuery, Chat
+from textformatting import TextFormatter
 
 CATEGORIES = {'any': 'Any',
               '9': 'General Knowledge',
@@ -75,6 +76,13 @@ class AnswerArrangement(object):
 
 
 class Trivia(MessageHandlerBase):
+    @staticmethod
+    def get_help() -> TextFormatter:
+        res = TextFormatter()
+        res.italic('\U00002328 Trivia').new_line().normal('Get a random trivia question.').new_line().new_line()
+        res.italic('\U00002328 Trivia category').new_line().italic('\U00002328 Trivia c').new_line().normal('Choose category for the question.')
+        return res
+
     def process_message(self, message: Message, bot: BotBase, chat_state: ChatState = None):
         if chat_state is not None:
             self.process_answer(message, bot, chat_state)
@@ -85,41 +93,87 @@ class Trivia(MessageHandlerBase):
         if chat_state is None:
             pass
         else:
-            try:
-                given_answer_idx = int(callback_query.data) - 1  # type: int
-                answers = chat_state.data['answers']  # type: AnswerArrangement
-                if given_answer_idx == answers.correct_answer_index:
-                    bot.send_message(callback_query.message.chat, 'Correct!!', MessageStyle.NONE)
-                else:
-                    bot.send_message(callback_query.message.chat,
-                                     'WRONG. The answer was:\n{k}. {a}'.format(k=answers.correct_answer_index + 1,
-                                                                               a=answers.answers[
-                                                                                   answers.correct_answer_index]), MessageStyle.NONE)
-                bot.answer_callback_query(callback_query.id_callback_query)
-                callback_query.message.chat.remove_chat_state()
-            except Exception as ex:
-                raise RuntimeError('Could not process answer: ' + str(ex))
+            if chat_state.data['action'] == 'question':
+                try:
+                    given_answer_idx = int(callback_query.data) - 1  # type: int
+                    answers = chat_state.data['answers']  # type: AnswerArrangement
+                    if given_answer_idx == answers.correct_answer_index:
+                        bot.send_message(callback_query.message.chat, 'Correct!!', MessageStyle.NONE)
+                    else:
+                        bot.send_message(callback_query.message.chat,
+                                         'WRONG. The answer was:\n{k}. {a}'.format(k=answers.correct_answer_index + 1,
+                                                                                   a=answers.answers[
+                                                                                       answers.correct_answer_index]), MessageStyle.NONE)
+                    bot.answer_callback_query(callback_query.id_callback_query)
+                    callback_query.message.chat.remove_chat_state()
+                except Exception as ex:
+                    raise RuntimeError('Could not process answer: ' + str(ex))
+            elif chat_state.data['action'] == 'choose_category':
+                id_category = callback_query.data
+                self.send_question(callback_query.message.chat, bot, id_category)
 
     def process_new_question(self, message: Message, bot: BotBase):
         words = message.text.split(' ')
         if words[0].lower() == 'trivia':
-            # json_obj = utils.get_url_json('https://opentdb.com/api.php', {'amount': '1'})
-            json_obj = utils.get_url_json('https://opentdb.com/api.php?amount=1')
-            question = TriviaQuestion.from_json(json_obj['results'][0])  # type: TriviaQuestion
-            answers = AnswerArrangement.generate_random_from_question(question)  # type: AnswerArrangement
-            keyboard = InlineKeyboardMarkup.from_str_list([str(k+1) for k in range(len(answers.answers))])  # type: InlineKeyboardMarkup
-            bot.send_message_with_inline_keyboard(message.chat,
-                                                  self.get_question_str(question, answers),
-                                                  MessageStyle.NONE,
-                                                  keyboard)
+            if len(words) == 1:
+                # json_obj = utils.get_url_json('https://opentdb.com/api.php', {'amount': '1'})
+                json_obj = utils.get_url_json('https://opentdb.com/api.php?amount=1')
+                question = TriviaQuestion.from_json(json_obj['results'][0])  # type: TriviaQuestion
+                answers = AnswerArrangement.generate_random_from_question(question)  # type: AnswerArrangement
+                keyboard = InlineKeyboardMarkup.from_str_list([str(k+1) for k in range(len(answers.answers))])  # type: InlineKeyboardMarkup
+                bot.send_message_with_inline_keyboard(message.chat,
+                                                      self.get_question_str(question, answers),
+                                                      MessageStyle.NONE,
+                                                      keyboard)
 
-            state = ChatState()
-            state.current_handler_name = self.handler_name
-            state.chat_id = message.chat.id_chat
-            state.last_time = time.time()
-            state.data['question'] = question
-            state.data['answers'] = answers
-            message.chat.save_chat_state(state)
+                state = ChatState()
+                state.current_handler_name = self.handler_name
+                state.chat_id = message.chat.id_chat
+                state.last_time = time.time()
+                state.data['action'] = 'question'
+                state.data['question'] = question
+                state.data['answers'] = answers
+                message.chat.save_chat_state(state)
+            elif len(words) == 2:
+                if words[1].lower() in ('category', 'c'):
+                    keyboard = InlineKeyboardMarkup()  # type: InlineKeyboardMarkup
+                    for category_key in sorted(CATEGORIES):
+                        button = InlineKeyboardButton()
+                        button.text = CATEGORIES[category_key]
+                        button.callback_data = category_key
+                        keyboard.inline_keyboard.append([button])
+                    msg = 'Select category:'
+                    bot.send_message_with_inline_keyboard(message.chat, msg, MessageStyle.NONE, keyboard)
+
+                    state = ChatState()
+                    state.current_handler_name = self.handler_name
+                    state.chat_id = message.chat.id_chat
+                    state.last_time = time.time()
+                    state.data['action'] = 'choose_category'
+                    message.chat.save_chat_state(state)
+
+    def send_question(self, chat: Chat, bot: BotBase, id_category: str = None):
+        if id_category is None:
+            json_obj = utils.get_url_json('https://opentdb.com/api.php?amount=1')
+        else:
+            json_obj = utils.get_url_json('https://opentdb.com/api.php?amount=1&category={c}'.format(c=id_category))
+        question = TriviaQuestion.from_json(json_obj['results'][0])  # type: TriviaQuestion
+        answers = AnswerArrangement.generate_random_from_question(question)  # type: AnswerArrangement
+        keyboard = InlineKeyboardMarkup.from_str_list(
+            [str(k + 1) for k in range(len(answers.answers))])  # type: InlineKeyboardMarkup
+        bot.send_message_with_inline_keyboard(chat,
+                                              self.get_question_str(question, answers),
+                                              MessageStyle.NONE,
+                                              keyboard)
+
+        state = ChatState()
+        state.current_handler_name = self.handler_name
+        state.chat_id = chat.id_chat
+        state.last_time = time.time()
+        state.data['action'] = 'question'
+        state.data['question'] = question
+        state.data['answers'] = answers
+        chat.save_chat_state(state)
 
     def process_answer(self, message: Message, bot: BotBase, chat_state: ChatState):
         try:
