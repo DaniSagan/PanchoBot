@@ -117,7 +117,7 @@ class Bot(BotBase):
                         self.on_new_message(update.message)
                     if update.callback_query is not None:
                         self.on_new_callback_query(update.callback_query)
-            except RuntimeError as e:
+            except Exception as e:
                 logging.exception(e)
                 time.sleep(60)
         print('Stopped')
