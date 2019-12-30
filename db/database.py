@@ -164,11 +164,11 @@ class Database(object):
         self.tables = []  # type: List[Table]
 
     @staticmethod
-    def from_json(json: Dict) -> 'Database':
+    def from_json(json_obj: Dict) -> 'Database':
         res = Database()  # type: Database
-        res.name = json.get('name')
-        res.filename = json['filename']
-        res.tables = [Table.from_json(t) for t in json['tables']]
+        res.name = json_obj.get('name')
+        res.filename = json_obj['filename']
+        res.tables = [Table.from_json(t) for t in json_obj['tables']]
         return res
 
     def create_connection(self) -> sqlite3.Connection:
