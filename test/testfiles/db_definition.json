@@ -1,0 +1,26 @@
+{
+  "filename": "test.sqlite",
+  "tables": [
+    {
+      "name": "table_parent",
+      "columns": [
+        { "name": "id_table_parent", "type": "int" },
+        { "name": "value_1", "type": "str" }
+      ],
+      "primary_key": "id_table_parent",
+      "foreign_keys": []
+    },
+    {
+      "name": "table_child",
+      "columns": [
+        { "name": "id_table_child", "type": "int" },
+        { "name": "id_table_parent", "type": "int" },
+        { "name": "value_1", "type": "str" }
+      ],
+      "primary_key": "id_table_child",
+      "foreign_keys": [
+        {"column": "id_table_child", "references": "table_parent.id_table_parent"}
+      ]
+    }
+  ]
+}
