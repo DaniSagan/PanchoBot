@@ -1,5 +1,6 @@
 import http.client
 import json
+import socket
 import urllib.request
 import urllib.parse
 from typing import Iterable, List, Dict, Callable
@@ -132,6 +133,12 @@ def is_float(s: str) -> bool:
         return True
     except ValueError:
         return False
+
+
+def get_ip_address() -> str:
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.connect(("8.8.8.8", 80))
+    return s.getsockname()[0]
 
 # 'cmd:w num:n msg:*w'
 # def parse_words(input_str: str, word_group_str: str) -> Dict[str, object]:

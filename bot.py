@@ -8,7 +8,7 @@ import logging
 import time
 
 import utils
-from data import GetUpdatesResponse, Chat, Message, BotConfig, ChatState, CallbackQuery
+from data import GetUpdatesResponse, Chat, Message, BotConfig, ChatState, CallbackQuery, Task
 from db.database import Database, DataSet, DataRow, DataTable
 import json
 from typing import Dict, Optional
@@ -16,6 +16,9 @@ import urllib.request
 import urllib.parse
 import urllib.error
 
+from objectprovider import ObjectProvider
+from scheduler import Scheduler
+from scheduler import TaskExecutor
 from textformatting import TextFormatter, MessageStyle
 
 
@@ -57,6 +60,7 @@ class BotBase(object):
         self.database = None  # type: Database
         self.running = True  # type: bool
         self.tokens = {}  # type: Dict[str, str]
+        self.scheduler = None  # type: Scheduler
 
     def get_updates(self) -> GetUpdatesResponse:
         raise NotImplementedError()
@@ -93,23 +97,33 @@ class MessageHandlerBase(object):
         return TextFormatter.instance().normal('Undefined handler')
 
 
-class Bot(BotBase):
+class Bot(BotBase, TaskExecutor):
 
     def __init__(self, config: BotConfig):
         BotBase.__init__(self)
         self.token = config.tokens['telegram']  # type: str
         self.config = config  # type: BotConfig
         self.message_handlers = {}  # type: Dict[str, type]
+        self.object_provider = None  # type: ObjectProvider
 
     def initialize(self):
         with open(self.config.database_definition_file) as fobj:
             db_definition_str = fobj.read()  # type: str
         self.database = Database.from_json(json.loads(db_definition_str))
         self.database.create_tables()
+        self.object_provider = ObjectProvider.load_from_json_file('op_definition.json')
+        self.scheduler = Scheduler(self)
+        tasks = self.object_provider.query_objects(self.database, 'data.Task', None, None)  # type: List[Task]
+        for task in tasks:
+            self.scheduler.add_task(task)
+        ip = utils.get_ip_address()
+        chats = self.object_provider.query_objects(self.database, 'data.Chat', None, None)  # type: List[Chat]
+        for chat in chats:
+            self.send_message(chat, 'Pancho initialized in host {ip}'.format(ip=ip), MessageStyle.NONE)
 
     def run(self):
         while self.running:
-            print('Waiting for messages...')
+            logging.info('Waiting for messages...')
             try:
                 response = self.get_updates()  # type: GetUpdatesResponse
                 for update in response.result:
@@ -120,7 +134,7 @@ class Bot(BotBase):
             except Exception as e:
                 logging.exception(e)
                 time.sleep(60)
-        print('Stopped')
+        logging.info('Stopped')
 
     def base_url(self) -> str:
         return 'https://api.telegram.org/bot{t}/'.format(t=self.token)
@@ -143,7 +157,7 @@ class Bot(BotBase):
             raise RuntimeError('Could not execute action {a}. Error: {e}. Reason: {r}'.format(a=action, e=received_obj['error_code'], r=received_obj['description']))
 
         # noinspection PyUnboundLocalVariable
-        print('Received response: {r}'.format(r=received_str))
+        logging.info('Received response: {r}'.format(r=received_str))
         return json.loads(received_str)
 
     def get_updates(self) -> GetUpdatesResponse:
@@ -153,7 +167,7 @@ class Bot(BotBase):
             json_resp = self.call('getUpdates', {"timeout": self.config.get_updates_timeout})
         else:
             json_resp = self.call('getUpdates', {"timeout": self.config.get_updates_timeout, "offset": last_update_id+1})
-        res = GetUpdatesResponse.from_json(json_resp)
+        res = GetUpdatesResponse.from_json(json_resp)  # type: GetUpdatesResponse
 
         if len(res.result) == 0:
             return res
@@ -208,14 +222,15 @@ class Bot(BotBase):
 
     def get_last_update_id(self) -> Optional[int]:
         connection = self.database.create_connection()
-        dt = self.database.query(connection, 'parameter', 'last_update_id', False)  # type: DataTable
+        ds = self.database.query(connection, 'parameter', 'last_update_id', False)  # type: DataSet
+        dt = ds.tables['parameter']
         if len(dt.rows) > 0:
             return int(list(dt.rows.values())[0].get('value'))
         else:
             return None
 
     def on_new_message(self, message: Message):
-        chat_state = message.chat.retrieve_chat_state()
+        chat_state = message.chat.retrieve_chat_state()  # type: ChatState
         if message.text.lower() == 'status':
             if chat_state is not None:
                 self.send_message(message.chat, 'Current handler: {h}'.format(h=chat_state.current_handler_name), MessageStyle.NONE)
@@ -267,3 +282,6 @@ class Bot(BotBase):
                 self.send_message(callback_query.message.chat, 'Error: {e}'.format(e=str(ex)), MessageStyle.NONE)
         else:
             self.send_message(callback_query.message.chat, 'Could not retrieve chat state', MessageStyle.NONE)
+
+    def execute_task(self, task: Task):
+        self.send_message(task.chat, 'This is a task!', MessageStyle.MARKDOWN)

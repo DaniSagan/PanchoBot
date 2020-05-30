@@ -1,5 +1,7 @@
 {
   "database_definition_file": "db_definition.json",
+  "object_provider_file": "op_definition.json",
   "get_updates_timeout": 60,
-  "token_file": "dat/bot/tokens.json"
+  "token_file": "dat/bot/tokens.json",
+  "specific_config_file": "dat/bot/specific_config.json"
 }

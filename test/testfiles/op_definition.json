@@ -1,0 +1,25 @@
+{
+  "object_definitions": [
+    {
+      "object_name": "test.dbdata.ParentObject",
+      "table_name": "table_parent",
+      "object_id": "id_table_parent",
+      "property_sources": [
+        { "name": "id_table_parent", "type": "property", "src_column": "id_table_parent" },
+        { "name": "value_1", "type": "property", "src_column": "value_1" },
+        { "name": "children", "type": "list", "object_name": "test.dbdata.ChildObject", "src_column": "id_table_parent" },
+        { "name": "single_child", "type": "object", "object_name": "test.dbdata.ChildObject", "src_column": "single_child"}
+      ]
+    },
+    {
+      "object_name": "test.dbdata.ChildObject",
+      "table_name": "table_child",
+      "object_id": "id_table_child",
+      "property_sources": [
+        { "name": "id_table_child", "type": "property", "src_column": "id_table_child" },
+        { "name": "id_table_parent", "type": "property", "src_column": "id_table_parent" },
+        { "name": "value_1", "type": "property", "src_column": "value_1" }
+      ]
+    }
+  ]
+}

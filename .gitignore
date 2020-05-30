@@ -5,3 +5,4 @@ venv/
 dat/
 token.txt
 pancho.sqlite
+chat/

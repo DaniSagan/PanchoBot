@@ -6,7 +6,8 @@ import time
 import datetime
 
 from bot import MessageHandlerBase, BotBase
-from data import Message, ChatState
+from data import Message, ChatState, Schedule
+from data import Task
 from textformatting import TextFormatter, MessageStyle
 from wordparser import WordParser
 
@@ -40,6 +41,16 @@ class ReminderHandler(MessageHandlerBase):
                 t = threading.Thread(target=s.run)
                 t.start()
                 bot.send_message(message.chat, 'Done', MessageStyle.NONE)
+            if parse_res.results['cmd'].lower() == 'testremind':
+                task = Task()  # type: Task
+                task.chat = message.chat
+                schedule = Schedule()
+                schedule.start = time.time() + 60
+                schedule.end = time.time() + 120
+                schedule.interval_seconds = 10
+                task.schedule = schedule
+                bot.scheduler.add_task(task)
+                bot.send_message(message.chat, 'Task was set', MessageStyle.NONE)
 
     def action(self, message: Message, bot: BotBase, data: RemindData) -> None:
         rt = datetime.datetime.fromtimestamp(data.request_time).strftime('%Y-%m-%d %H:%M:%S')  # type: str

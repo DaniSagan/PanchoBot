@@ -59,6 +59,31 @@
       "foreign_keys": [
         {"column": "id_message", "references": "message.id_message"}
       ]
+    },
+    {
+      "name": "schedule",
+      "columns": [
+        {"name": "id_schedule", "type": "str"},
+        {"name": "start", "type": "int?"},
+        {"name": "end", "type": "int?"},
+        {"name": "last_execution", "type": "int?"},
+        {"name": "week_days", "type": "int?"}
+      ],
+      "primary_key": "id_schedule",
+      "foreign_keys": []
+    },
+    {
+      "name": "task",
+      "columns": [
+        {"name": "id_task", "type": "str"},
+        {"name": "id_chat", "type": "int?"},
+        {"name": "id_schedule", "type": "str?"}
+      ],
+      "primary_key": "id_task",
+      "foreign_keys": [
+        {"column": "id_chat", "references": "chat.id_chat"},
+        {"column": "id_schedule", "references": "schedule.id_schedule"}
+      ]
     }
   ]
 }

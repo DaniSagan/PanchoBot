@@ -1,0 +1,35 @@
+{
+  "object_definitions": [
+    {
+      "object_name": "data.Task",
+      "table_name": "task",
+      "object_id": "id_task",
+      "property_sources": [
+        {"name": "id_task", "type": "property", "src_table": "task.id_task", "src_column": "id_task"},
+        {"name": "chat", "type": "object", "object_type": "data.Chat", "src_table": "chat", "src_column": "id_chat", "referenced_table": "task", "referenced_column": "id_chat"}
+      ]
+    },
+    {
+      "object_name": "data.Chat",
+      "table_name": "chat",
+      "object_id": "id_chat",
+      "property_sources": [
+        {"name": "id_chat", "type": "property", "src_column": "id_chat"},
+        {"name": "first_name", "type": "property", "src_column": "first_name"},
+        {"name": "last_name", "type": "property", "src_column": "last_name"},
+        {"name": "type", "type": "property", "src_column": "type"}
+      ]
+    },
+    {
+      "object_name": "data.Schedule",
+      "table_name": "schedule",
+      "object_id": "id_schedule",
+      "property_sources": [
+        {"name": "id_schedule", "type": "property", "src_column": "id_schedule"},
+        {"name": "start", "type": "property", "src_column": "first_name"},
+        {"name": "end", "type": "property", "src_column": "last_name"},
+        {"name": "last_execution", "type": "property", "src_column": "type"}
+      ]
+    }
+  ]
+}

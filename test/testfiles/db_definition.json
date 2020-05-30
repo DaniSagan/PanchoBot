@@ -5,16 +5,19 @@
       "name": "table_parent",
       "columns": [
         { "name": "id_table_parent", "type": "int" },
+        { "name": "single_child", "type": "int?" },
         { "name": "value_1", "type": "str" }
       ],
       "primary_key": "id_table_parent",
-      "foreign_keys": []
+      "foreign_keys": [
+        {"column": "single_child", "references": "table_child.id_table_child"}
+      ]
     },
     {
       "name": "table_child",
       "columns": [
         { "name": "id_table_child", "type": "int" },
-        { "name": "id_table_parent", "type": "int" },
+        { "name": "id_table_parent", "type": "int?" },
         { "name": "value_1", "type": "str" }
       ],
       "primary_key": "id_table_child",

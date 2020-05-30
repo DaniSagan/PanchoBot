@@ -2,6 +2,8 @@ import argparse
 
 import logging
 
+import sys
+
 import data
 import json
 import bot
@@ -19,7 +21,10 @@ import messagehandlers.tua
 
 if __name__ == '__main__':
 
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s',
+                        level=logging.DEBUG,
+                        datefmt='%Y-%m-%d %H:%M:%S',
+                        stream=sys.stdout)
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--no-ssl-cert', action='store_true')

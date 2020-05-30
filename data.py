@@ -1,9 +1,13 @@
+import uuid
 from typing import List, Optional, Dict
 import pickle
 import pathlib
+import time
+
+import sqlite3
 
 import utils
-from db.database import DataRow, DbSerializable, DataSet
+from db.database import DataRow, DbSerializable, DataSet, Database
 
 
 class GetUpdatesResponse(object):
@@ -12,7 +16,7 @@ class GetUpdatesResponse(object):
         self.result = []  # type: List[Update]
 
     @staticmethod
-    def from_json(json_obj) -> 'GetUpdatesResponse':
+    def from_json(json_obj: Dict) -> 'GetUpdatesResponse':
         res = GetUpdatesResponse()
         res.ok = json_obj['ok']
         res.result = [Update.from_json(x) for x in json_obj['result']]
@@ -22,15 +26,19 @@ class GetUpdatesResponse(object):
 class BotConfig(object):
     def __init__(self):
         self.database_definition_file = None  # type: Optional[str]
+        self.object_provider_file = None  # type: str
         self.get_updates_timeout = 0  # type: int
         self.tokens = {}  # type: Dict[str, str]
+        self.specific_config = {}  # type: Dict
 
     @staticmethod
     def from_json(json_object: Dict) -> 'BotConfig':
         res = BotConfig()  # type: BotConfig
         res.database_definition_file = json_object.get('database_definition_file')
+        res.object_provider_file = json_object.get('object_provider_file')
         res.get_updates_timeout = json_object.get('get_updates_timeout')
         res.tokens = utils.get_file_json(json_object['token_file'])
+        res.specific_config = utils.get_file_json(json_object['specific_config_file'])
         return res
 
 
@@ -104,7 +112,17 @@ class Chat(DbSerializable):
         res.last_name = row.get('last_name')
         return res
 
-    def retrieve_chat_state(self) -> Optional[ChatState]:
+    @classmethod
+    def get_by_id(cls, database: Database, connection: sqlite3.Connection, id_object: object) -> 'Chat':
+        res = Chat()
+        row = database.query_row(connection, 'chat', id_object)
+        res.id_chat = row.get('id_chat')
+        res.type = row.get('type')
+        res.first_name = row.get('first_name')
+        res.last_name = row.get('last_name')
+        return res
+
+    def retrieve_chat_state(self) -> ChatState:
         folder = pathlib.Path('chat')  # type: pathlib.Path
         if not folder.exists():
             return None
@@ -233,10 +251,65 @@ class User(DbSerializable):
         return res
 
 
+class Schedule(object):
+    def __init__(self):
+        self.id_schedule = uuid.uuid1()  # type: uuid
+        self.start = 0  # type: int
+        self.end = 0  # type: int
+        self.last_execution = 0  # type: int
+        self.interval_seconds = 0  # type: int
+
+    def next_execution(self) -> Optional[int]:
+        if self.last_execution == 0:
+            return self.start
+        if self.interval_seconds == 0:
+            return None
+        expected_execution = self.last_execution + self.interval_seconds
+        if self.start <= expected_execution <= self.end:
+            return expected_execution
+        else:
+            return None
+
+
+    # @classmethod
+    # def from_data_set(cls, data_set: DataSet) -> List['DbSerializable']:
+    #     pass
+    #
+    # def to_data_set(self) -> DataSet:
+    #     res = DataSet()  # type: DataSet
+    #     row = DataRow('schedule', str(self.id_schedule))  # type: DataRow
+    #     row.put('id_schedule', str(self.id_schedule))
+    #     res.merge_row(row)
+    #     return res
+    #
+    # @classmethod
+    # def get_by_id(cls, database: Database, connection: sqlite3.Connection, id_object: object) -> 'Schedule':
+    #     res = Schedule()
+    #     row = database.query_row(connection, 'schedule', id_object)
+    #     res.id_schedule = id_object
+    #     return res
+
+
 class Task(DbSerializable):
     def __init__(self):
-        self.id_task = 0  # type: int
+        self.id_task = uuid.uuid1()  # type: uuid
+        self.chat = None  # type: Chat
+        self.schedule = None  # type: Schedule
 
     def to_data_set(self) -> DataSet:
-        res = DataSet()
-        row = DataRow('')
+        res = DataSet()  # type: DataSet
+        row = DataRow('task', self.id_task)  # type: DataRow
+        row.put('id_task', str(self.id_task))
+        res.merge_row(row)
+        return res
+
+    @classmethod
+    def from_data_set(cls, data_set: DataSet) -> List['Task']:
+        pass
+
+    @classmethod
+    def get_by_id(cls, database: Database, connection: sqlite3.Connection, id_object: object) -> 'Task':
+        res = Task()
+        row = database.query_row(connection, 'task', id_object)
+        res.chat = Chat.get_by_id(database, connection, row.get('id_chat'))
+        return res
