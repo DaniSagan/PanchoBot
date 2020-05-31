@@ -3,12 +3,18 @@ from typing import Dict
 from typing import List
 
 import utils
-from bot.base import MessageHandlerBase, BotBase
+from bot.base import BotBase, MessageHandlerBase
+from bot.plugins import Plugin
 from data import Message, ChatState
 from textformatting import MessageStyle
 
 
-class Xkcd(MessageHandlerBase):
+class XkcdPlugin(Plugin):
+    def on_load(self, bot: BotBase) -> None:
+        bot.add_message_handler('xkcd', XkcdMessageHandler)
+
+
+class XkcdMessageHandler(MessageHandlerBase):
 
     def process_message(self, message: Message, bot: BotBase, chat_state: ChatState = None):
         words = message.text.split(' ')  # type: List[str]

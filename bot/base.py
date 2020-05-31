@@ -45,11 +45,15 @@ class BotBase(object):
         self.running = True  # type: bool
         self.tokens = {}  # type: Dict[str, str]
         self.scheduler = None  # type: Scheduler
+        self.message_handlers = {}  # type: Dict[str, type]
 
     def get_updates(self) -> GetUpdatesResponse:
         raise NotImplementedError()
 
     def send_message(self, chat: Chat, text: Union[str, TextFormatter], style: MessageStyle) -> Message:
+        raise NotImplementedError()
+
+    def broadcast(self, text: Union[str, TextFormatter], style: MessageStyle) -> Message:
         raise NotImplementedError()
 
     def send_message_with_inline_keyboard(self, chat: Chat, text: str, style: MessageStyle, inline_keyboard: InlineKeyboardMarkup) -> Message:
@@ -60,6 +64,11 @@ class BotBase(object):
 
     def stop(self):
         self.running = False
+
+    def add_message_handler(self, handler_name: str, handler_type: type) -> None:
+        if handler_name in self.message_handlers:
+            raise ValueError(handler_name + ' already added.')
+        self.message_handlers[handler_name] = handler_type
 
 
 class MessageHandlerBase(object):
@@ -79,3 +88,4 @@ class MessageHandlerBase(object):
     @staticmethod
     def get_info() -> TextFormatter:
         return TextFormatter.instance().normal('Undefined handler')
+

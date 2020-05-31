@@ -18,6 +18,6 @@ class JsonSerializable(object):
     def to_json(self) -> Dict:
         raise NotImplementedError()
 
-    def dump_to_json_file(self, filename: str):
+    def dump_to_json_file(self, filename: str) -> None:
         with open(filename, 'w') as fobj:
             json.dump(self.to_json(), fobj)

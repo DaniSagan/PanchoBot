@@ -38,8 +38,8 @@ if __name__ == '__main__':
     if args.no_ssl_cert:
         ssl._create_default_https_context = ssl._create_unverified_context
 
-    bot_config = data.BotConfig.from_json(utils.get_file_json('bot_config.json'))  # type: BotConfig
-    database = Database.from_json(utils.get_file_json(bot_config.database_definition_file))  # type: Database
+    bot_config = data.BotConfig.load_from_json_file('bot_config.json')  # type: BotConfig
+    database = Database.load_from_json_file(bot_config.database_definition_file)  # type: Database
     database.create_tables()
     object_provider = ObjectProvider.load_from_json_file('op_definition.json')  # type: ObjectProvider
 
@@ -48,7 +48,7 @@ if __name__ == '__main__':
 
     pancho_bot.message_handlers['sender'] = messagehandlers.messagesender.MessageSender
     pancho_bot.message_handlers['poweroff'] = messagehandlers.terminal.PowerOff
-    pancho_bot.message_handlers['xkcd'] = messagehandlers.xkcd.Xkcd
+    #pancho_bot.message_handlers['xkcd'] = messagehandlers.xkcd.Xkcd
     pancho_bot.message_handlers['exchangerates'] = messagehandlers.exchangerates.ExchangeRates
     pancho_bot.message_handlers['trivia'] = messagehandlers.trivia.Trivia
     pancho_bot.message_handlers['newton'] = messagehandlers.newtoncalc.NewtonCalc

@@ -1,22 +1,19 @@
 import http.client
-from typing import List, Union
-
-import subprocess
-
+import json
 import logging
-
+import subprocess
 import time
+import urllib.error
+import urllib.parse
+import urllib.request
+from typing import Dict, Optional
+from typing import List, Union
 
 import utils
 from bot.base import BotBase, InlineKeyboardMarkup
+from bot.plugins import PluginCollection
 from data import GetUpdatesResponse, Chat, Message, BotConfig, ChatState, CallbackQuery, Task
 from db.database import Database, DataSet, DataRow
-import json
-from typing import Dict, Optional
-import urllib.request
-import urllib.parse
-import urllib.error
-
 from objectprovider import ObjectProvider
 from scheduler import Scheduler
 from scheduler import TaskExecutor
@@ -31,7 +28,7 @@ class Bot(BotBase, TaskExecutor):
         self.config = config  # type: BotConfig
         self.object_provider = object_provider  # type: ObjectProvider
         self.database = database  # type: Database
-        self.message_handlers = {}  # type: Dict[str, type]
+        self.plugin_collection = None  # type: PluginCollection
 
     def initialize(self):
         self.scheduler = Scheduler(self)
@@ -42,6 +39,9 @@ class Bot(BotBase, TaskExecutor):
         chats = self.object_provider.query_objects(self.database, 'data.Chat', None, None)  # type: List[Chat]
         for chat in chats:
             self.send_message(chat, 'Pancho initialized in host {ip}'.format(ip=ip), MessageStyle.NONE)
+        self.plugin_collection = PluginCollection('plugins')
+        for plugin in self.plugin_collection.plugins:
+            plugin.on_load(self)
 
     def run(self):
         while self.running:
@@ -123,6 +123,11 @@ class Bot(BotBase, TaskExecutor):
         sent_message = Message.from_json(resp['result'])
         self.database.save(sent_message)
         return sent_message
+
+    def broadcast(self, text: Union[str, TextFormatter], style: MessageStyle):
+        chats = self.object_provider.query_objects(self.database, 'data.Chat', None, None)  # type: List[Chat]
+        for chat in chats:
+            self.send_message(chat, text, style)
 
     def send_message_with_inline_keyboard(self, chat: Chat, text: str, style: MessageStyle, inline_keyboard: InlineKeyboardMarkup) -> Message:
         message_params = {'chat_id': chat.id_chat, 'text': text, 'reply_markup': inline_keyboard.to_json()}
@@ -207,3 +212,7 @@ class Bot(BotBase, TaskExecutor):
 
     def execute_task(self, task: Task):
         self.send_message(task.chat, 'This is a task!', MessageStyle.MARKDOWN)
+
+
+
+

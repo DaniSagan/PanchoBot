@@ -8,6 +8,7 @@ import sqlite3
 
 import utils
 from db.database import DataRow, DbSerializable, DataSet, Database
+from jsonutils import JsonDeserializable
 
 
 class GetUpdatesResponse(object):
@@ -23,7 +24,7 @@ class GetUpdatesResponse(object):
         return res
 
 
-class BotConfig(object):
+class BotConfig(JsonDeserializable):
     def __init__(self):
         self.database_definition_file = None  # type: Optional[str]
         self.object_provider_file = None  # type: str
@@ -31,8 +32,8 @@ class BotConfig(object):
         self.tokens = {}  # type: Dict[str, str]
         self.specific_config = {}  # type: Dict
 
-    @staticmethod
-    def from_json(json_object: Dict) -> 'BotConfig':
+    @classmethod
+    def from_json(cls, json_object: Dict) -> 'BotConfig':
         res = BotConfig()  # type: BotConfig
         res.database_definition_file = json_object.get('database_definition_file')
         res.object_provider_file = json_object.get('object_provider_file')
