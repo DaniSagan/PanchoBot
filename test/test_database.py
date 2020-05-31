@@ -7,7 +7,6 @@ from typing import List
 import sqlite3
 
 import utils
-from db.database import DataTable
 from db.database import Database, DbSerializable, DataSet, DataRow
 
 TABLE_PARENT = 'table_parent'
@@ -45,7 +44,7 @@ class ParentObject(DbSerializable):
         row.put('value_1', self.value_1)
         ds.merge_row(row)
         for child in self.children:
-            child_ds = child.to_data_set()  # type: Dataset
+            child_ds = child.to_data_set()  # type: DataSet
             child_ds.add_column_to_table(TABLE_CHILD, 'id_table_parent', self.id_table_parent)
             ds.merge(child_ds)
         return ds

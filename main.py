@@ -6,7 +6,7 @@ import sys
 
 import data
 import json
-import bot
+from bot.bot import Bot
 import ssl
 
 import messagehandlers.messagesender
@@ -35,7 +35,7 @@ if __name__ == '__main__':
 
     with open('bot_config.json') as fobj:
         bot_config_json = json.loads(fobj.read().strip())
-    pancho_bot = bot.Bot(data.BotConfig.from_json(bot_config_json))  # type: bot.Bot
+    pancho_bot = Bot(data.BotConfig.from_json(bot_config_json))  # type: Bot
     pancho_bot.initialize()
 
     pancho_bot.message_handlers['sender'] = messagehandlers.messagesender.MessageSender

@@ -1,7 +1,8 @@
 import subprocess
 
-from bot import MessageHandlerBase, BotBase, MessageStyle
+from bot.base import MessageHandlerBase, BotBase
 from data import Message, ChatState
+from textformatting import MessageStyle
 
 
 class PowerOff(MessageHandlerBase):

@@ -1,8 +1,8 @@
 from typing import Dict, List
 import utils
-from bot import MessageHandlerBase, BotBase, MessageStyle
+from bot.base import MessageHandlerBase, BotBase
 from data import Message, ChatState
-from textformatting import TextFormatter
+from textformatting import TextFormatter, MessageStyle
 
 
 class ExchangeRates(MessageHandlerBase):

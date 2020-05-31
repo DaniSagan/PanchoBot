@@ -1,6 +1,7 @@
-from bot import MessageHandlerBase, BotBase, MessageStyle
+from bot.base import MessageHandlerBase, BotBase
 from data import Message, Chat, ChatState
 from db.database import DataTable, DataSet
+from textformatting import MessageStyle
 
 
 class MessageSender(MessageHandlerBase):

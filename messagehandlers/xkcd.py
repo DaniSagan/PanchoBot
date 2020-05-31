@@ -3,8 +3,9 @@ from typing import Dict
 from typing import List
 
 import utils
-from bot import MessageHandlerBase, BotBase, MessageStyle
+from bot.base import MessageHandlerBase, BotBase
 from data import Message, ChatState
+from textformatting import MessageStyle
 
 
 class Xkcd(MessageHandlerBase):

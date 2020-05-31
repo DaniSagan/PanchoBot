@@ -6,9 +6,10 @@ from typing import List
 import time
 
 import utils
-from bot import MessageHandlerBase, BotBase, InlineKeyboardMarkup, MessageStyle, InlineKeyboardButton
+from bot.base import InlineKeyboardMarkup, InlineKeyboardButton
+from bot.base import MessageHandlerBase, BotBase
 from data import Message, ChatState, CallbackQuery, Chat
-from textformatting import TextFormatter
+from textformatting import TextFormatter, MessageStyle
 
 CATEGORIES = {'any': 'Any',
               '9': 'General Knowledge',

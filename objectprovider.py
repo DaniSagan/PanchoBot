@@ -1,4 +1,4 @@
-from typing import Dict, Type, Tuple
+from typing import Dict, Tuple
 from typing import List
 
 import sqlite3

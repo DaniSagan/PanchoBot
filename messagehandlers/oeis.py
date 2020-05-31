@@ -3,10 +3,10 @@ from typing import Dict
 from typing import List
 
 import utils
-from bot import MessageHandlerBase, BotBase, MessageStyle
+from bot.base import MessageHandlerBase, BotBase
 from data import Message, ChatState
 from jsonutils import JsonDeserializable
-from textformatting import TextFormatter
+from textformatting import TextFormatter, MessageStyle
 
 
 class QueryResultItem(JsonDeserializable):

@@ -3,9 +3,9 @@ from typing import Dict
 from typing import List
 
 import utils
-from bot import MessageHandlerBase, BotBase, MessageStyle
+from bot.base import MessageHandlerBase, BotBase
 from data import Message, ChatState
-from textformatting import TextFormatter
+from textformatting import TextFormatter, MessageStyle
 
 OPERATION_EXAMPLES = {
     'simplify': 'simplify 2^2+2(2)',

@@ -5,12 +5,11 @@ import time
 from lxml.html import HtmlElement
 
 import utils
-from bot import MessageHandlerBase, BotBase, InlineKeyboardMarkup, InlineKeyboardButton
+from bot.base import MessageHandlerBase, BotBase, InlineKeyboardMarkup, InlineKeyboardButton
 from data import Message, ChatState, CallbackQuery
 from jsonutils import JsonSerializable, JsonDeserializable
 from textformatting import MessageStyle, TextFormatter
 from wordparser import WordParser
-import re
 
 
 class Stop(JsonSerializable, JsonDeserializable):

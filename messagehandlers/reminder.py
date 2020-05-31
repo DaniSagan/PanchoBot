@@ -5,7 +5,7 @@ import time
 
 import datetime
 
-from bot import MessageHandlerBase, BotBase
+from bot.base import MessageHandlerBase, BotBase
 from data import Message, ChatState, Schedule
 from data import Task
 from textformatting import TextFormatter, MessageStyle
