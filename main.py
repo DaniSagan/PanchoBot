@@ -6,6 +6,8 @@ import sys
 
 import data
 import json
+
+import utils
 from bot.bot import Bot
 import ssl
 
@@ -18,6 +20,9 @@ import messagehandlers.newtoncalc
 import messagehandlers.oeis
 import messagehandlers.reminder
 import messagehandlers.tua
+from data import BotConfig
+from db.database import Database
+from objectprovider import ObjectProvider
 
 if __name__ == '__main__':
 
@@ -33,9 +38,12 @@ if __name__ == '__main__':
     if args.no_ssl_cert:
         ssl._create_default_https_context = ssl._create_unverified_context
 
-    with open('bot_config.json') as fobj:
-        bot_config_json = json.loads(fobj.read().strip())
-    pancho_bot = Bot(data.BotConfig.from_json(bot_config_json))  # type: Bot
+    bot_config = data.BotConfig.from_json(utils.get_file_json('bot_config.json'))  # type: BotConfig
+    database = Database.from_json(utils.get_file_json(bot_config.database_definition_file))  # type: Database
+    database.create_tables()
+    object_provider = ObjectProvider.load_from_json_file('op_definition.json')  # type: ObjectProvider
+
+    pancho_bot = Bot(bot_config, object_provider, database)  # type: Bot
     pancho_bot.initialize()
 
     pancho_bot.message_handlers['sender'] = messagehandlers.messagesender.MessageSender
