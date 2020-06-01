@@ -4,7 +4,7 @@ from db.database import DataTable, DataSet
 from textformatting import MessageStyle
 
 
-class MessageSender(MessageHandlerBase):
+class MesageSenderMessageHandler(MessageHandlerBase):
     def process_message(self, message: Message, bot: BotBase, chat_state: ChatState = None):
         words = message.text.split(' ')
         if words[0].lower() == 'msg':

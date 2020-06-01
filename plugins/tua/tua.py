@@ -135,7 +135,7 @@ class Estimation(JsonDeserializable):
         return res
 
 
-class TuaHandler(MessageHandlerBase):
+class TuaMessageHandler(MessageHandlerBase):
     @staticmethod
     def get_help() -> TextFormatter:
         res = TextFormatter()

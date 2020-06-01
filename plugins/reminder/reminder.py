@@ -18,7 +18,7 @@ class RemindData(object):
         self.request_time = 0.  # type: float
 
 
-class ReminderHandler(MessageHandlerBase):
+class ReminderMessageHandler(MessageHandlerBase):
     @staticmethod
     def get_help() -> TextFormatter:
         res = TextFormatter()

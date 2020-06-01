@@ -37,7 +37,7 @@ class NewtonCalcResponse(object):
         return res
 
 
-class NewtonCalc(MessageHandlerBase):
+class NewtonCalcMessageHandler(MessageHandlerBase):
     @staticmethod
     def get_help() -> TextFormatter:
         res = TextFormatter()  # type: TextFormatter

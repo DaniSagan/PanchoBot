@@ -1,25 +1,10 @@
 import argparse
-
 import logging
-
+import ssl
 import sys
 
 import data
-import json
-
-import utils
 from bot.bot import Bot
-import ssl
-
-import messagehandlers.messagesender
-import messagehandlers.terminal
-import messagehandlers.xkcd
-import messagehandlers.exchangerates
-import messagehandlers.trivia
-import messagehandlers.newtoncalc
-import messagehandlers.oeis
-import messagehandlers.reminder
-import messagehandlers.tua
 from data import BotConfig
 from db.database import Database
 from objectprovider import ObjectProvider
@@ -45,15 +30,4 @@ if __name__ == '__main__':
 
     pancho_bot = Bot(bot_config, object_provider, database)  # type: Bot
     pancho_bot.initialize()
-
-    pancho_bot.message_handlers['sender'] = messagehandlers.messagesender.MessageSender
-    pancho_bot.message_handlers['poweroff'] = messagehandlers.terminal.PowerOff
-    #pancho_bot.message_handlers['xkcd'] = messagehandlers.xkcd.Xkcd
-    pancho_bot.message_handlers['exchangerates'] = messagehandlers.exchangerates.ExchangeRates
-    pancho_bot.message_handlers['trivia'] = messagehandlers.trivia.Trivia
-    pancho_bot.message_handlers['newton'] = messagehandlers.newtoncalc.NewtonCalc
-    pancho_bot.message_handlers['oeis'] = messagehandlers.oeis.OeisHandler
-    pancho_bot.message_handlers['remind'] = messagehandlers.reminder.ReminderHandler
-    pancho_bot.message_handlers['tua'] = messagehandlers.tua.TuaHandler
-
     pancho_bot.run()

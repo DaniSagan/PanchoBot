@@ -5,7 +5,7 @@ from data import Message, ChatState
 from textformatting import TextFormatter, MessageStyle
 
 
-class ExchangeRates(MessageHandlerBase):
+class ExchangeRatesMessageHandler(MessageHandlerBase):
     @staticmethod
     def get_help() -> TextFormatter:
         res = TextFormatter()

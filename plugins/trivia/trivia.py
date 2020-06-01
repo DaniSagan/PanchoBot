@@ -76,7 +76,7 @@ class AnswerArrangement(object):
         return res
 
 
-class Trivia(MessageHandlerBase):
+class TriviaMessageHandler(MessageHandlerBase):
     @staticmethod
     def get_help() -> TextFormatter:
         res = TextFormatter()

@@ -15,8 +15,8 @@ class QueryResultItem(JsonDeserializable):
         self.data = ''  # type: str
         self.name = ''  # type: str
 
-    @staticmethod
-    def from_json(json_object: Dict) -> 'QueryResultItem':
+    @classmethod
+    def from_json(cls, json_object: Dict) -> 'QueryResultItem':
         res = QueryResultItem()  # type: QueryResultItem
         res.number = json_object['number']
         res.data = json_object['data']
@@ -32,8 +32,8 @@ class QueryResult(JsonDeserializable):
         self.start = 0  # type: int
         self.results = []  # type: List[QueryResultItem]
 
-    @staticmethod
-    def from_json(json_object: Dict) -> 'QueryResult':
+    @classmethod
+    def from_json(cls, json_object: Dict) -> 'QueryResult':
         res = QueryResult()  # type: QueryResult
         res.greeting = json_object['greeting']
         res.query = json_object['query']
@@ -43,7 +43,7 @@ class QueryResult(JsonDeserializable):
         return res
 
 
-class OeisHandler(MessageHandlerBase):
+class OeisMessageHandler(MessageHandlerBase):
     def process_message(self, message: Message, bot: BotBase, chat_state: ChatState = None):
         words = message.text.split(' ')
         if words[0].lower() == 'oeis':
