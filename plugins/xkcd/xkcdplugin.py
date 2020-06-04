@@ -10,6 +10,9 @@ from textformatting import MessageStyle
 
 
 class XkcdPlugin(Plugin):
+    def name(self) -> str:
+        return 'xkcd'
+
     def on_load(self, bot: BotBase) -> None:
         bot.add_message_handler('xkcd', XkcdMessageHandler)
 

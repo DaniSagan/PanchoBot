@@ -40,7 +40,7 @@ class Bot(BotBase, TaskExecutor):
         for chat in chats:
             self.send_message(chat, 'Pancho initialized in host {ip}'.format(ip=ip), MessageStyle.NONE)
         self.plugin_collection = PluginCollection('plugins')
-        for plugin in self.plugin_collection.plugins:
+        for plugin in self.plugin_collection:
             plugin.on_load(self)
 
     def run(self):

@@ -1,6 +1,7 @@
 import inspect
 import os
 import pkgutil
+from typing import List
 
 from bot.base import BotBase
 
@@ -11,15 +12,20 @@ class Plugin(object):
     def on_load(self, bot: BotBase) -> None:
         raise NotImplementedError()
 
+    def name(self) -> str:
+        raise NotImplementedError()
+
 
 class PluginCollection(object):
 
     def __init__(self, plugin_package):
+        self._plugin_dict = {}
         self.plugin_package = plugin_package
         self.reload_plugins()
 
-    def reload_plugins(self):
-        self.plugins = []
+    def reload_plugins(self) -> None:
+        # self.plugins = []
+        self._plugin_dict.clear()
         self.seen_paths = []
         print()
         print('Looking for plugins under package {0}'.format(self.plugin_package))
@@ -31,12 +37,14 @@ class PluginCollection(object):
         for _, pluginname, ispkg in pkgutil.iter_modules(imported_package.__path__, imported_package.__name__ + '.'):
             if not ispkg:
                 plugin_module = __import__(pluginname, fromlist=['blah'])
-                clsmembers = inspect.getmembers(plugin_module, inspect.isclass)
+                clsmembers = inspect.getmembers(plugin_module, inspect.isclass)  # type: List[type]
                 for (_, c) in clsmembers:
                     # Only add classes that are a sub class of Plugin, but NOT Plugin itself
                     if issubclass(c, Plugin) & (c is not Plugin):
                         print('    Found plugin class: {c.__module__}.{c.__name__}')
-                        self.plugins.append(c())
+                        plugin_instance = c()  # type: Plugin
+                        # self.plugins.append(plugin_instance)
+                        self._plugin_dict[plugin_instance.name] = plugin_instance
 
         # Now that we have looked at all the modules in the current package, start looking
         # recursively for additional modules in sub packages
@@ -56,3 +64,10 @@ class PluginCollection(object):
                 # For each subdirectory, apply the walk_package method recursively
                 for child_pkg in child_pkgs:
                     self.walk_package(package + '.' + child_pkg)
+
+    def get(self, name: str) -> Plugin:
+        return self._plugin_dict[name]
+
+    def __iter__(self):
+        return iter(self._plugin_dict.values())
+

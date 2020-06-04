@@ -6,6 +6,7 @@ import time
 
 import sqlite3
 
+import jsonutils
 import utils
 from db.database import DataRow, DbSerializable, DataSet, Database
 from jsonutils import JsonDeserializable
@@ -167,7 +168,7 @@ class Message(DbSerializable):
         res._from = User.from_json(json_obj['from'])
         res.chat = Chat.from_json(json_obj['chat'])
         res.date = json_obj['date']
-        res.text = json_obj['text']
+        res.text = json_obj.get('text')
         return res
 
     def to_data_set(self) -> DataSet:
