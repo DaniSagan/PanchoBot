@@ -56,6 +56,9 @@ class BotBase(object):
     def broadcast(self, text: Union[str, TextFormatter], style: MessageStyle) -> Message:
         raise NotImplementedError()
 
+    def send_document(self, chat: Chat, filename: str):
+        raise NotImplementedError()
+
     def send_message_with_inline_keyboard(self, chat: Chat, text: str, style: MessageStyle, inline_keyboard: InlineKeyboardMarkup) -> Message:
         raise NotImplementedError()
 

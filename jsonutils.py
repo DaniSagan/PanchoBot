@@ -1,6 +1,8 @@
 from typing import Dict
 import json
 
+import utils
+
 
 class JsonDeserializable(object):
     @classmethod
@@ -12,6 +14,10 @@ class JsonDeserializable(object):
         with open(filename, 'r') as fobj:
             data = json.load(fobj)
         return cls.from_json(data)
+
+    @classmethod
+    def load_from_json_url(cls, url: str, params: Dict = None) -> 'JsonDeserializable':
+        return cls.from_json(utils.get_url_json(url, params))
 
 
 class JsonSerializable(object):

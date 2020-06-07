@@ -3,6 +3,6 @@ __pycache__/
 venv/
 
 dat/
-token.txt
+**/tokens.json
 pancho.sqlite
 chat/

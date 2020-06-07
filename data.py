@@ -12,13 +12,13 @@ from db.database import DataRow, DbSerializable, DataSet, Database
 from jsonutils import JsonDeserializable
 
 
-class GetUpdatesResponse(object):
+class GetUpdatesResponse(JsonDeserializable):
     def __init__(self):
         self.ok = False  # type: bool
         self.result = []  # type: List[Update]
 
-    @staticmethod
-    def from_json(json_obj: Dict) -> 'GetUpdatesResponse':
+    @classmethod
+    def from_json(cls, json_obj: Dict) -> 'GetUpdatesResponse':
         res = GetUpdatesResponse()
         res.ok = json_obj['ok']
         res.result = [Update.from_json(x) for x in json_obj['result']]
@@ -44,14 +44,14 @@ class BotConfig(JsonDeserializable):
         return res
 
 
-class Update(DbSerializable):
+class Update(DbSerializable, JsonDeserializable):
     def __init__(self):
         self.id_update = 0  # type: int
         self.message = None  # type: Message
         self.callback_query = None  # type: CallbackQuery
 
-    @staticmethod
-    def from_json(json_obj) -> 'Update':
+    @classmethod
+    def from_json(cls, json_obj: Dict) -> 'Update':
         res = Update()  # type: Update
         res.id_update = json_obj['update_id']
         res.message = Message.from_json(json_obj['message']) if 'message' in json_obj else None
@@ -59,7 +59,7 @@ class Update(DbSerializable):
         return res
 
     def to_data_set(self) -> DataSet:
-        res = DataSet()
+        res = DataSet()  # type: DataSet
         row = DataRow('update', self.id_update)
         row.put('id_update', self.id_update)
         row.put('id_message', self.message.id_message if self.message is not None else None)
@@ -77,15 +77,15 @@ class ChatState(object):
         self.data = {}  # type: Dict
 
 
-class Chat(DbSerializable):
+class Chat(DbSerializable, JsonDeserializable):
     def __init__(self):
         self.id_chat = 0  # type: int
         self.first_name = None  # type: str
         self.last_name = None  # type: str
         self.type = None  # type: str
 
-    @staticmethod
-    def from_json(json_obj) -> 'Chat':
+    @classmethod
+    def from_json(cls, json_obj: Dict) -> 'Chat':
         res = Chat()  # type: Chat
         res.id_chat = json_obj['id']
         res.type = json_obj['type']
@@ -103,8 +103,8 @@ class Chat(DbSerializable):
         res.merge_row(row)
         return res
 
-    @staticmethod
-    def from_data_set(ds: DataSet) -> 'Chat':
+    @classmethod
+    def from_data_set(cls, ds: DataSet) -> 'Chat':
         res = Chat()  # type: Chat
         table = ds.tables['chat']
         row = list(table.rows.values())[0]
@@ -153,22 +153,24 @@ class Chat(DbSerializable):
             filename.unlink()
 
 
-class Message(DbSerializable):
+class Message(DbSerializable, JsonDeserializable):
     def __init__(self):
         self.id_message = 0  # type: int
         self._from = None  # type: Optional[User]
         self.date = None  # type: Optional[int]
         self.text = None  # type: Optional[str]
         self.chat = None  # type: Optional[Chat]
+        self.photo = []  # type: List[PhotoSize]
 
-    @staticmethod
-    def from_json(json_obj) -> 'Message':
+    @classmethod
+    def from_json(cls, json_obj: Dict) -> 'Message':
         res = Message()  # type: Message
         res.id_message = json_obj['message_id']
         res._from = User.from_json(json_obj['from'])
         res.chat = Chat.from_json(json_obj['chat'])
         res.date = json_obj['date']
         res.text = json_obj.get('text')
+        res.photo = [PhotoSize.from_json(x) for x in json_obj.get('photo')] if 'photo' in json_obj else None
         return res
 
     def to_data_set(self) -> DataSet:
@@ -182,10 +184,14 @@ class Message(DbSerializable):
         res.merge_row(row)
         res.merge(self._from.to_data_set())
         res.merge(self.chat.to_data_set())
+        if self.photo is not None:
+            for photo_size in self.photo:  # type: PhotoSize
+                res.merge(photo_size.to_data_set())
+                res.add_column_to_table('photo_size', 'id_message', self.id_message)
         return res
 
 
-class CallbackQuery(DbSerializable):
+class CallbackQuery(DbSerializable, JsonDeserializable):
     def __init__(self):
         self.id_callback_query = ''  # type: str
         self._from = None  # type: User
@@ -194,8 +200,8 @@ class CallbackQuery(DbSerializable):
         self.chat_instance = None  # type: str
         self.data = None  # type: str
 
-    @staticmethod
-    def from_json(json_obj) -> 'CallbackQuery':
+    @classmethod
+    def from_json(cls, json_obj: Dict) -> 'CallbackQuery':
         res = CallbackQuery()  # type: CallbackQuery
         res.id_callback_query = json_obj['id']
         res._from = User.from_json(json_obj['from'])
@@ -220,7 +226,7 @@ class CallbackQuery(DbSerializable):
         return res
 
 
-class User(DbSerializable):
+class User(DbSerializable, JsonDeserializable):
     def __init__(self):
         self.id_user = 0  # type: int
         self.is_bot = False  # type: bool
@@ -229,8 +235,8 @@ class User(DbSerializable):
         self.username = None  # type: Optional[str]
         self.language_code = None  # type: Optional[str]
 
-    @staticmethod
-    def from_json(json_obj) -> 'User':
+    @classmethod
+    def from_json(cls, json_obj: Dict) -> 'User':
         res = User()  # type: User
         res.id_user = json_obj['id']
         res.is_bot = json_obj['is_bot']
@@ -249,6 +255,36 @@ class User(DbSerializable):
         row.put('last_name', self.last_name)
         row.put('username', self.username)
         row.put('language_code', self.language_code)
+        res.merge_row(row)
+        return res
+
+
+class PhotoSize(DbSerializable, JsonDeserializable):
+    def __init__(self):
+        self.file_id = None  # type: str
+        self.file_unique_id = None  # type: str
+        self.width = 0  # type: int
+        self.height = 0  # type: int
+        self.file_size = 0  # type: int
+
+    @classmethod
+    def from_json(cls, json_object: Dict) -> 'PhotoSize':
+        res = PhotoSize()
+        res.file_id = json_object['file_id']
+        res.file_unique_id = json_object['file_unique_id']
+        res.width = json_object['width']
+        res.height = json_object['height']
+        res.file_size = json_object['file_size']
+        return res
+
+    def to_data_set(self) -> DataSet:
+        res = DataSet()
+        row = DataRow('photo_size', self.file_id)
+        row.put('file_id', self.file_id)
+        row.put('file_unique_id', self.file_unique_id)
+        row.put('width', self.width)
+        row.put('height', self.height)
+        row.put('file_size', self.file_size)
         res.merge_row(row)
         return res
 

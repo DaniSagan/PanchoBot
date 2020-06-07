@@ -41,7 +41,11 @@ class Bot(BotBase, TaskExecutor):
             self.send_message(chat, 'Pancho initialized in host {ip}'.format(ip=ip), MessageStyle.NONE)
         self.plugin_collection = PluginCollection('plugins')
         for plugin in self.plugin_collection:
-            plugin.on_load(self)
+            try:
+                plugin.on_load(self)
+            except Exception as e:
+                logging.error('Could not load plugin {p}'.format(p=plugin.name()), e)
+                self.broadcast('Could not load plugin {p}'.format(p=plugin.name()), MessageStyle.NONE)
 
     def run(self):
         while self.running:
@@ -158,45 +162,32 @@ class Bot(BotBase, TaskExecutor):
 
     def on_new_message(self, message: Message):
         chat_state = message.chat.retrieve_chat_state()  # type: ChatState
-        if message.text.lower() == 'status':
-            if chat_state is not None:
-                self.send_message(message.chat, 'Current handler: {h}'.format(h=chat_state.current_handler_name), MessageStyle.NONE)
-            else:
-                self.send_message(message.chat, 'OK', MessageStyle.NONE)
-        elif message.text.lower() == 'quit':
-            message.chat.remove_chat_state()
-        elif message.text.lower() == 'test':
-            self.send_document(message.chat, 'assets/test.png')
-        elif message.text.lower() == 'help':
-            if chat_state is None:
-                tf = TextFormatter()  # TextFormatter
-                for handler_name in self.message_handlers:
-                    tf.append(TextFormatter.instance().bold(handler_name).new_line()
-                              .append(self.message_handlers[handler_name].get_help()).new_line()
-                              .normal('\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_').new_line())
-                self.send_message(message.chat, tf, MessageStyle.MARKDOWN)
-            else:
-                tf = TextFormatter()  # TextFormatter
-                tf.append(TextFormatter.instance().bold(chat_state.current_handler_name).new_line()
-                          .append(self.message_handlers[chat_state.current_handler_name].get_help()).new_line()
-                          .normal('\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_').new_line())
-                self.send_message(message.chat, tf, MessageStyle.MARKDOWN)
+
+        instance = self.message_handlers['base']()
+        instance.handler_name = 'base'
+        try:
+            instance.process_message(message, self, chat_state)
+        except Exception as ex:
+            self.send_message(message.chat, 'Error: {e}'.format(e=str(ex)), MessageStyle.NONE)
+            logging.exception(ex)
+
+        if chat_state is not None:
+            instance = self.message_handlers[chat_state.current_handler_name]()
+            instance.handler_name = chat_state.current_handler_name
+            try:
+                instance.process_message(message, self, chat_state)
+            except Exception as ex:
+                self.send_message(message.chat, 'Error: {e}'.format(e=str(ex)), MessageStyle.NONE)
         else:
-            if chat_state is not None:
-                instance = self.message_handlers[chat_state.current_handler_name]()
-                instance.handler_name = chat_state.current_handler_name
-                try:
-                    instance.process_message(message, self, chat_state)
-                except Exception as ex:
-                    self.send_message(message.chat, 'Error: {e}'.format(e=str(ex)), MessageStyle.NONE)
             for handler_name in self.message_handlers:
-                instance = self.message_handlers[handler_name]()
-                instance.handler_name = handler_name
-                try:
-                    instance.process_message(message, self)
-                except Exception as ex:
-                    self.send_message(message.chat, 'Error: {e}'.format(e=str(ex)), MessageStyle.NONE)
-                    logging.exception(ex)
+                if handler_name != 'base':
+                    instance = self.message_handlers[handler_name]()
+                    instance.handler_name = handler_name
+                    try:
+                        instance.process_message(message, self)
+                    except Exception as ex:
+                        self.send_message(message.chat, 'Error: {e}'.format(e=str(ex)), MessageStyle.NONE)
+                        logging.exception(ex)
 
     def on_new_callback_query(self, callback_query: CallbackQuery):
         chat_state = callback_query.message.chat.retrieve_chat_state()

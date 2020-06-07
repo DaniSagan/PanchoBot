@@ -84,6 +84,21 @@
         {"column": "id_chat", "references": "chat.id_chat"},
         {"column": "id_schedule", "references": "schedule.id_schedule"}
       ]
+    },
+    {
+      "name": "photo_size",
+      "columns": [
+        {"name": "file_id", "type": "str"},
+        {"name": "file_unique_id", "type": "str"},
+        {"name": "width", "type": "int"},
+        {"name": "height", "type": "int"},
+        {"name": "file_size", "type": "int"},
+        {"name": "id_message", "type": "int"}
+      ],
+      "primary_key": "file_id",
+      "foreign_keys": [
+        {"column": "id_message", "references": "message.id_message"}
+      ]
     }
   ]
 }

@@ -41,7 +41,7 @@ class PluginCollection(object):
                 for (_, c) in clsmembers:
                     # Only add classes that are a sub class of Plugin, but NOT Plugin itself
                     if issubclass(c, Plugin) & (c is not Plugin):
-                        print('    Found plugin class: {c.__module__}.{c.__name__}')
+                        print('Found plugin class: {m}.{n}'.format(m=c.__module__, n=c.__name__))
                         plugin_instance = c()  # type: Plugin
                         # self.plugins.append(plugin_instance)
                         self._plugin_dict[plugin_instance.name] = plugin_instance
