@@ -8,4 +8,5 @@ class TestPlugin(Plugin):
         return 'test'
 
     def on_load(self, bot: BotBase) -> None:
-        bot.broadcast('Test plugin loaded!!!!!!!!!!!!!!!', MessageStyle.NONE)
+        pass
+        #bot.broadcast('Test plugin loaded!!!!!!!!!!!!!!!', MessageStyle.NONE)

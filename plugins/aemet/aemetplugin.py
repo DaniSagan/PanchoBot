@@ -2,6 +2,8 @@ from typing import Dict
 
 import logging
 
+import time
+
 import utils
 from bot.base import BotBase, MessageHandlerBase
 from bot.plugins import Plugin
@@ -38,7 +40,7 @@ class AemetMessageHandler(MessageHandlerBase):
             if parse_res.results['cmd'].lower() == 'tiempo':
                 res = self.get_radar_regional(bot.tokens['aemet'], 'sa')
                 logging.debug(res)
-                bot.send_message(message.chat, res.data, MessageStyle.NONE)
+                bot.send_message(message.chat, '{l}?a={d}'.format(l=res.data, d=time.time()), MessageStyle.NONE)
 
     def get_radar_regional(self, token: str, region: str) -> AemetResponse:
         return AemetResponse.load_from_json_url(
