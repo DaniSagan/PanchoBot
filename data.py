@@ -31,7 +31,8 @@ class BotConfig(JsonDeserializable):
         self.object_provider_file = None  # type: str
         self.get_updates_timeout = 0  # type: int
         self.tokens = {}  # type: Dict[str, str]
-        self.specific_config = {}  # type: Dict
+        # self.specific_config = {}  # type: Dict
+        self.administrator_id = 0  # type: int
 
     @classmethod
     def from_json(cls, json_object: Dict) -> 'BotConfig':
@@ -40,7 +41,8 @@ class BotConfig(JsonDeserializable):
         res.object_provider_file = json_object.get('object_provider_file')
         res.get_updates_timeout = json_object.get('get_updates_timeout')
         res.tokens = utils.get_file_json(json_object['token_file'])
-        res.specific_config = utils.get_file_json(json_object['specific_config_file'])
+        specific_config = utils.get_file_json(json_object['specific_config_file'])
+        res.administrator_id = specific_config['administrator_id']
         return res
 
 
@@ -351,3 +353,31 @@ class Task(DbSerializable):
         row = database.query_row(connection, 'task', id_object)
         res.chat = Chat.get_by_id(database, connection, row.get('id_chat'))
         return res
+
+
+class Profile(DbSerializable):
+    def __init__(self):
+        self.id_profile = uuid.uuid1()  # type: uuid
+        self.name = None  # type: str
+
+    def to_data_set(self) -> DataSet:
+        res = DataSet()  # type: DataSet
+        row = DataRow('id_profile', self.id_profile)  # type: DataRow
+        row.put('id_profile', str(self.id_profile))
+        row.put('name', self.name)
+        res.merge_row(row)
+        return res
+
+    @classmethod
+    def from_data_set(cls, data_set: DataSet) -> List['DbSerializable']:
+        pass
+
+
+class UserProfile(DbSerializable):
+    def __init__(self):
+        self.id_user_profile = uuid.uuid1()  # type: uuid
+        self.id_user = 0  # type: int
+        self.id_user_profile = None  # type: uuid
+
+    def to_data_set(self) -> DataSet:
+        pass

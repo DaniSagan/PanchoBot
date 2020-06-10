@@ -1,6 +1,7 @@
 import http.client
 import json
 import logging
+import socket
 import subprocess
 import time
 import urllib.error
@@ -38,7 +39,10 @@ class Bot(BotBase, TaskExecutor):
         ip = utils.get_ip_address()
         chats = self.object_provider.query_objects(self.database, 'data.Chat', None, None)  # type: List[Chat]
         for chat in chats:
-            self.send_message(chat, 'Pancho initialized in host {ip}'.format(ip=ip), MessageStyle.NONE)
+            try:
+                self.send_message(chat, 'Pancho initialized in host {ip}'.format(ip=ip), MessageStyle.NONE)
+            except Exception as ex:
+                logging.error('Could not send message to chat {c}.'.format(c=chat.id_chat), ex)
         self.plugin_collection = PluginCollection('plugins')
         for plugin in self.plugin_collection:
             try:
@@ -65,7 +69,7 @@ class Bot(BotBase, TaskExecutor):
     def base_url(self) -> str:
         return 'https://api.telegram.org/bot{t}/'.format(t=self.token)
 
-    def call(self, action: str, params: Dict = None) -> Dict:
+    def call(self, action: str, params: Dict = None, timeout: float = socket._GLOBAL_DEFAULT_TIMEOUT) -> Dict:
         if params is not None:
             req = urllib.request.Request(self.base_url() + action, urllib.parse.urlencode(utils.dict_to_url_params(params)).encode('ascii'))
         else:
@@ -90,9 +94,9 @@ class Bot(BotBase, TaskExecutor):
 
         last_update_id = self.get_last_update_id()  # type: Optional[int]
         if last_update_id is None:
-            json_resp = self.call('getUpdates', {"timeout": self.config.get_updates_timeout})
+            json_resp = self.call('getUpdates', {"timeout": self.config.get_updates_timeout}, timeout=self.config.get_updates_timeout)
         else:
-            json_resp = self.call('getUpdates', {"timeout": self.config.get_updates_timeout, "offset": last_update_id+1})
+            json_resp = self.call('getUpdates', {"timeout": self.config.get_updates_timeout, "offset": last_update_id+1}, timeout=self.config.get_updates_timeout)
         res = GetUpdatesResponse.from_json(json_resp)  # type: GetUpdatesResponse
 
         if len(res.result) == 0:
@@ -113,6 +117,14 @@ class Bot(BotBase, TaskExecutor):
         connection.commit()
 
         return res
+
+    def send_admin(self, text: Union[str, TextFormatter], style: MessageStyle) -> List[Message]:
+        # res = []
+        # chats = self.object_provider.query_objects(self.database, 'data.Chat', 'id_', None)  # type: List[Chat]
+        # for chat in chats:
+        #     res.append(self.send_message(chat, text, style))
+        # return res
+        raise NotImplementedError()
 
     def send_message(self, chat: Chat, text: Union[str, TextFormatter], style: MessageStyle) -> Message:
         if type(text) is TextFormatter:

@@ -50,6 +50,9 @@ class BotBase(object):
     def get_updates(self) -> GetUpdatesResponse:
         raise NotImplementedError()
 
+    def send_admin(self, text: Union[str, TextFormatter], style: MessageStyle) -> Message:
+        raise NotImplementedError()
+
     def send_message(self, chat: Chat, text: Union[str, TextFormatter], style: MessageStyle) -> Message:
         raise NotImplementedError()
 
