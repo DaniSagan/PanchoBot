@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, TextIO
 import json
 
 import utils
@@ -11,6 +11,7 @@ class JsonDeserializable(object):
 
     @classmethod
     def load_from_json_file(cls, filename: str) -> 'JsonDeserializable':
+        fobj: TextIO
         with open(filename, 'r') as fobj:
             data = json.load(fobj)
         return cls.from_json(data)
@@ -25,5 +26,6 @@ class JsonSerializable(object):
         raise NotImplementedError()
 
     def dump_to_json_file(self, filename: str) -> None:
+        fobj: TextIO
         with open(filename, 'w') as fobj:
             json.dump(self.to_json(), fobj)

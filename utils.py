@@ -1,9 +1,9 @@
 import http.client
 import json
-import socket
 import urllib.request
 import urllib.parse
-from typing import Iterable, List, Dict, Callable
+import socket
+from typing import Iterable, List, Dict, Callable, TypeVar
 import re
 
 import lxml.html
@@ -14,7 +14,7 @@ def index_of(obj_list: Iterable, obj: object) -> List[int]:
 
 
 def first_index_of(obj_list: Iterable, obj: object) -> int:
-    idx = [i for i, item in enumerate(obj_list) if item == obj]
+    idx: List[int] = [i for i, item in enumerate(obj_list) if item == obj]
     if len(idx) > 0:
         return idx[0]
     else:
@@ -22,23 +22,26 @@ def first_index_of(obj_list: Iterable, obj: object) -> int:
 
 
 def first_index_where(obj_list: Iterable, fn: Callable[[object], bool]) -> int:
-    idx = [i for i, item in enumerate(obj_list) if fn(item)]
+    idx: List[int] = [i for i, item in enumerate(obj_list) if fn(item)]
     if len(idx) > 0:
         return idx[0]
     else:
         raise RuntimeError('Item not found in iterable')
 
 
-def first_where(obj_list: Iterable, fn: Callable[[object], bool]) -> object:
-    items = [item for i, item in enumerate(obj_list) if fn(item)]
+T = TypeVar('T')
+
+
+def first_where(obj_list: Iterable[T], fn: Callable[[T], bool]) -> T:
+    items: List[T] = [item for i, item in enumerate(obj_list) if fn(item)]
     if len(items) > 0:
         return items[0]
     else:
         raise RuntimeError('Item not found in iterable')
 
 
-def first_or_default_where(obj_list: Iterable, fn: Callable[[object], bool]) -> object:
-    items = [item for i, item in enumerate(obj_list) if fn(item)]
+def first_or_default_where(obj_list: Iterable[T], fn: Callable[[T], bool]) -> T:
+    items: List[T] = [item for i, item in enumerate(obj_list) if fn(item)]
     if len(items) > 0:
         return items[0]
     else:
@@ -46,17 +49,18 @@ def first_or_default_where(obj_list: Iterable, fn: Callable[[object], bool]) -> 
 
 
 def get_url_html(url: str, params: Dict = None) -> lxml.html.HtmlElement:
-    headers = {"User-Agent": "Mozilla/5.0"}
+    headers: Dict[str, str] = {"User-Agent": "Mozilla/5.0"}
     if params is not None:
         req = urllib.request.Request(url, data=urllib.parse.urlencode(params).encode('ascii'), headers=headers)
     else:
         req = urllib.request.Request(url, headers=headers)
-    with urllib.request.urlopen(req) as response:  # type:  http.client.HTTPResponse
+    response: http.client.HTTPResponse
+    with urllib.request.urlopen(req) as response:
         if response.status == 200:
-            received_bytes = response.read()  # type: bytes
-            received_str = received_bytes.decode("utf8")  # type: str
+            received_bytes: bytes = response.read()
+            received_str: str = received_bytes.decode("utf8")
         else:
-            raise RuntimeError('Could get url {url}. Reason: {r}'.format(url=url, r=response.reason))
+            raise RuntimeError(f'Could get url {url}. Reason: {response.reason}')
 
     # noinspection PyUnboundLocalVariable
     print('Received response: {r}'.format(r=received_str))
@@ -65,39 +69,43 @@ def get_url_html(url: str, params: Dict = None) -> lxml.html.HtmlElement:
 
 
 def get_file_html(filename: str) -> lxml.html.HtmlElement:
-    with open(filename, 'r') as fobj:  # type:  http.client.HTTPResponse
-        file_contents = fobj.read()  # type: bytes
+    fobj: http.client.HTTPResponse
+    with open(filename, 'r') as fobj:
+        file_contents: bytes = fobj.read()
     parser = lxml.html.HTMLParser()
     return lxml.html.document_fromstring(file_contents, parser=parser)
 
 
 def get_url_json(url: str, params: Dict = None) -> Dict:
-    headers = {"User-Agent": "Mozilla/5.0"}
+    headers: Dict[str, str] = {"User-Agent": "Mozilla/5.0"}
     if params is not None:
-        req = urllib.request.Request(url, data=urllib.parse.urlencode(params).encode('ascii'), headers=headers)
+        req: urllib.request.Request = urllib.request.Request(url,
+                                                             data=urllib.parse.urlencode(params).encode('ascii'),
+                                                             headers=headers)
     else:
         req = urllib.request.Request(url, headers=headers)
-    with urllib.request.urlopen(req) as response:  # type:  http.client.HTTPResponse
+    response: http.client.HTTPResponse
+    with urllib.request.urlopen(req) as response:
         if response.status == 200:
-            received_bytes = response.read()  # type: bytes
-            received_str = received_bytes.decode("utf8")  # type: str
+            received_bytes: bytes = response.read()
+            received_str: str = received_bytes.decode("utf8")
         else:
-            raise RuntimeError('Could get url {url}. Reason: {r}'.format(url=url, r=response.reason))
+            raise RuntimeError(f'Could get url {url}. Reason: {response.reason}')
 
     # noinspection PyUnboundLocalVariable
-    print('Received response: {r}'.format(r=received_str))
+    print(f'Received response: {received_str}')
     return json.loads(received_str)
 
 
 def get_file_json(filename: str) -> Dict:
-    res = None  # type: Dict
+    res: Dict or None = None
     with open(filename) as fobj:
         res = json.loads(fobj.read().strip())
     return res
 
 
 def dict_to_url_params(value: Dict) -> Dict:
-    res = {}
+    res: Dict = {}
     for key in value:
         if isinstance(value[key], dict):
             res[key] = json.dumps(value[key])
@@ -111,19 +119,19 @@ def html_strip_str(s: str) -> str:
 
 
 def seconds_to_duration(s: int) -> str:
-    days = s // 86400
-    hours = (s // 3600) % 24
-    minutes = (s // 60) % 60
-    seconds = s % 60
-    res = ''
+    days: int = s // 86400
+    hours: int = (s // 3600) % 24
+    minutes: int = (s // 60) % 60
+    seconds: int = s % 60
+    res: str = ''
     if days > 0:
-        res += '{}d'.format(days)
+        res += f'{days}d'
     if hours > 0:
-        res += '{}h'.format(hours)
+        res += f'{hours}h'
     if minutes > 0:
-        res += '{}m'.format(minutes)
+        res += f'{minutes}m'
     if seconds > 0 or not res:
-        res += '{}s'.format(seconds)
+        res += f'{seconds}s'
     return res
 
 
@@ -136,7 +144,7 @@ def is_float(s: str) -> bool:
 
 
 def get_ip_address() -> str:
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s: socket.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     s.connect(("8.8.8.8", 80))
     return s.getsockname()[0]
 

@@ -11,7 +11,7 @@ from typing import Dict, Optional
 from typing import List, Union
 
 import utils
-from bot.base import BotBase, InlineKeyboardMarkup
+from bot.base import BotBase, InlineKeyboardMarkup, MessageHandlerBase
 from bot.plugins import PluginCollection
 from data import GetUpdatesResponse, Chat, Message, BotConfig, ChatState, CallbackQuery, Task
 from db.database import Database, DataSet, DataRow
@@ -37,7 +37,7 @@ class Bot(BotBase, TaskExecutor):
         for task in tasks:
             self.scheduler.add_task(task)
         ip = utils.get_ip_address()
-        chats = self.object_provider.query_objects(self.database, 'data.Chat', None, None)  # type: List[Chat]
+        chats: List[Chat] = self.object_provider.query_objects(self.database, 'data.Chat', None, None)
         for chat in chats:
             try:
                 self.send_message(chat, 'Pancho initialized in host {ip}'.format(ip=ip), MessageStyle.NONE)
@@ -104,7 +104,7 @@ class Bot(BotBase, TaskExecutor):
 
         ds = DataSet()  # type: DataSet
         for result in res.result:
-            ds.merge(result.to_data_set())
+            ds.merge(result.to_data_set)
 
         last_update_id = max(r.id_update for r in res.result)  # type: int
         last_update_id_row = DataRow('parameter', 'last_update_id')
@@ -141,7 +141,7 @@ class Bot(BotBase, TaskExecutor):
         return sent_message
 
     def broadcast(self, text: Union[str, TextFormatter], style: MessageStyle):
-        chats = self.object_provider.query_objects(self.database, 'data.Chat', None, None)  # type: List[Chat]
+        chats: List[Chat] = self.object_provider.query_objects(self.database, 'data.Chat', None, None)
         for chat in chats:
             self.send_message(chat, text, style)
 
@@ -165,22 +165,22 @@ class Bot(BotBase, TaskExecutor):
 
     def get_last_update_id(self) -> Optional[int]:
         connection = self.database.create_connection()
-        ds = self.database.query(connection, 'parameter', 'last_update_id', False)  # type: DataSet
+        ds: DataSet = self.database.query(connection, 'parameter', 'last_update_id', False)
         dt = ds.tables['parameter']
         if len(dt.rows) > 0:
             return int(list(dt.rows.values())[0].get('value'))
         else:
             return None
 
-    def on_new_message(self, message: Message):
-        chat_state = message.chat.retrieve_chat_state()  # type: ChatState
+    def on_new_message(self, message: Message) -> None:
+        chat_state: ChatState = message.chat.retrieve_chat_state()
 
-        instance = self.message_handlers['base']()
+        instance: MessageHandlerBase = self.message_handlers['base']()
         instance.handler_name = 'base'
         try:
             instance.process_message(message, self, chat_state)
         except Exception as ex:
-            self.send_message(message.chat, 'Error: {e}'.format(e=str(ex)), MessageStyle.NONE)
+            self.send_message(message.chat, f'Error: {str(ex)}', MessageStyle.NONE)
             logging.exception(ex)
 
         if chat_state is not None:
@@ -189,8 +189,9 @@ class Bot(BotBase, TaskExecutor):
             try:
                 instance.process_message(message, self, chat_state)
             except Exception as ex:
-                self.send_message(message.chat, 'Error: {e}'.format(e=str(ex)), MessageStyle.NONE)
+                self.send_message(message.chat, f'Error: {str(ex)}', MessageStyle.NONE)
         else:
+            handler_name: str
             for handler_name in self.message_handlers:
                 if handler_name != 'base':
                     instance = self.message_handlers[handler_name]()
@@ -198,18 +199,18 @@ class Bot(BotBase, TaskExecutor):
                     try:
                         instance.process_message(message, self)
                     except Exception as ex:
-                        self.send_message(message.chat, 'Error: {e}'.format(e=str(ex)), MessageStyle.NONE)
+                        self.send_message(message.chat, f'Error: {str(ex)}', MessageStyle.NONE)
                         logging.exception(ex)
 
-    def on_new_callback_query(self, callback_query: CallbackQuery):
-        chat_state = callback_query.message.chat.retrieve_chat_state()
+    def on_new_callback_query(self, callback_query: CallbackQuery) -> None:
+        chat_state: ChatState = callback_query.message.chat.retrieve_chat_state()
         if chat_state is not None:
-            instance = self.message_handlers[chat_state.current_handler_name]()
+            instance: MessageHandlerBase = self.message_handlers[chat_state.current_handler_name]()
             instance.handler_name = chat_state.current_handler_name
             try:
                 instance.process_callback_query(callback_query, self, chat_state)
             except Exception as ex:
-                self.send_message(callback_query.message.chat, 'Error: {e}'.format(e=str(ex)), MessageStyle.NONE)
+                self.send_message(callback_query.message.chat, f'Error: {str(ex)}', MessageStyle.NONE)
         else:
             self.send_message(callback_query.message.chat, 'Could not retrieve chat state', MessageStyle.NONE)
 

@@ -1,5 +1,5 @@
 import sqlite3
-from typing import Optional, List, Dict, Tuple, Set, Type
+from typing import Optional, List, Dict, Tuple, Set, Type, Any, Iterator
 import itertools
 import utils
 from jsonutils import JsonDeserializable
@@ -63,7 +63,7 @@ class DataRow(object):
     def put(self, key: str, value: object) -> None:
         self.items[key] = value
 
-    def get(self, key: str) -> object:
+    def get(self, key: str) -> Any:
         return self.items[key]
 
 
@@ -105,14 +105,14 @@ class DataSet(object):
 
 class Table(object):
     def __init__(self):
-        self.name = 'table'  # type: str
-        self.columns = []  # type: List[Column]
-        self.primary_key = None  # type: Optional[str]
-        self.foreign_keys = []  # type: List[ForeignKey]
+        self.name: str = 'table'
+        self.columns: List[Column] = []
+        self.primary_key: Optional[str] = None
+        self.foreign_keys: List[ForeignKey] = []
 
     @staticmethod
     def from_json(json_object: Dict) -> 'Table':
-        res = Table()  # type: Table
+        res: Table = Table()
         res.name = json_object.get('name', None)
         res.columns = [Column.from_json(r) for r in json_object['columns']]
         res.primary_key = json_object.get('primary_key')
@@ -120,37 +120,39 @@ class Table(object):
         return res
 
     def get_create_cmd(self):
-        columns_create_str_list = []  # type: List[str]
+        columns_create_str_list: List[str] = []
         for column in self.columns:
-            col_str = '{n} {t}'.format(n=column.name, t=column.type)  # type: str
+            col_str: str = '{n} {t}'.format(n=column.name, t=column.type)
             if not column.nullable:
                 col_str += ' NOT NULL'
             if self.primary_key is not None and self.primary_key == column.name:
                 col_str += ' PRIMARY KEY'
             columns_create_str_list.append(col_str)
+        foreign_key: ForeignKey
         for foreign_key in self.foreign_keys:
-            fk_str = 'FOREIGN KEY ({c}) REFERENCES {rt}({rc})'.format(c=foreign_key.column, rt=foreign_key.referenced_table, rc=foreign_key.referenced_column)
+            fk_str: str = f'FOREIGN KEY ({foreign_key.column}) REFERENCES {foreign_key.referenced_table}({foreign_key.referenced_column})'
             columns_create_str_list.append(fk_str)
-        res = 'CREATE TABLE IF NOT EXISTS [{t}] ({cols});'.format(t=self.name, cols=', '.join(columns_create_str_list))
+        res: str = f'CREATE TABLE IF NOT EXISTS [{self.name}] ({", ".join(columns_create_str_list)});'
         return res
 
     def row_to_tuple_for_insert(self, row: DataRow) -> Tuple:
-        res = [None] * len(self.columns)
+        res: List = [None] * len(self.columns)
+        key: str
         for key in row.items:
             try:
-                index = [i for i, col in enumerate(self.columns) if key == col.name][0]  # type: int
+                index: int = [i for i, col in enumerate(self.columns) if key == col.name][0]
             except:
                 raise RuntimeError('Column \'{k}\' not found in table \'{t}\''.format(k=key, t=self.name))
             res[index] = row.items[key]
         return tuple(res)
 
     def row_to_tuple_for_update(self, row: DataRow) -> Tuple:
-        columns_without_pk = [c for c in self.columns if c.name != self.primary_key]  # type: List[Column]
-        res = [None for _ in columns_without_pk]  # type: List[object]
+        columns_without_pk: List[Column] = [c for c in self.columns if c.name != self.primary_key]
+        res: List[object] = [None for _ in columns_without_pk]
         for key in row.items:
             if key != self.primary_key:
                 try:
-                    index = [i for i, col in enumerate(columns_without_pk) if key == col.name][0]  # type: int
+                    index: int = [i for i, col in enumerate(columns_without_pk) if key == col.name][0]
                 except:
                     raise RuntimeError('Column \'{k}\' not found in table \'{t}\''.format(k=key, t=self.name))
                 res[index] = row.items[key]
@@ -175,13 +177,13 @@ class DbSerializable(object):
 
 class Database(JsonDeserializable):
     def __init__(self):
-        self.name = 'db'  # type: str
-        self.filename = None  # type: Optional[str]
-        self.tables = []  # type: List[Table]
+        self.name: str = 'db'
+        self.filename: Optional[str] = None
+        self.tables: List[Table] = []
 
     @classmethod
     def from_json(cls, json_obj: Dict) -> 'Database':
-        res = Database()  # type: Database
+        res: Database = Database()
         res.name = json_obj.get('name')
         res.filename = json_obj['filename']
         res.tables = [Table.from_json(t) for t in json_obj['tables']]
@@ -191,7 +193,7 @@ class Database(JsonDeserializable):
         return sqlite3.connect(self.filename)
 
     def create_tables(self):
-        conn = sqlite3.connect(self.filename)  # type: sqlite3.Connection
+        conn: sqlite3.Connection = sqlite3.connect(self.filename)
         for table in self.tables:
             if not self.table_exists(conn, table.name):
                 self.create_table(conn, table)
@@ -205,19 +207,19 @@ class Database(JsonDeserializable):
             connection.commit()
 
     def table_exists(self, connection: sqlite3.Connection, table_name: str) -> bool:
-        cursor = connection.cursor()  # type: sqlite3.Cursor
+        cursor: sqlite3.Cursor = connection.cursor()
         cursor.execute('SELECT name FROM sqlite_master WHERE type=\'table\' AND name=\'{t}\';'.format(t=table_name))
-        rows = cursor.fetchall()
+        rows: List = cursor.fetchall()
         return len(rows) > 0
 
     def create_table(self, connection: sqlite3.Connection, table: Table) -> None:
-        cursor = connection.cursor()  # type: sqlite3.Cursor
+        cursor: sqlite3.Cursor = connection.cursor()
         cursor.execute(table.get_create_cmd())
 
     def update_table(self, connection: sqlite3.Connection, table: Table) -> None:
         # cursor = connection.cursor()
         curr_table = self.get_current_table(connection, table.name)
-        update_needed = False  # type: bool
+        update_needed: bool = False
         for curr_col in curr_table.columns:
             defined_col = utils.first_or_default_where(table.columns, lambda c: c.name == curr_col.name)
             if defined_col is not None and curr_col != defined_col:
@@ -231,31 +233,32 @@ class Database(JsonDeserializable):
                     self.add_column_to_table(connection, table.name, expected_column)
 
     def recreate_table(self, connection: sqlite3.Connection, table: Table):
-        curr_table = self.get_current_table(connection, table.name)
-        columns_str = ', '.join([c.name for c in curr_table.columns])
-        cursor = connection.cursor()
-        backup_table_name = table.name + '_bk'
+        curr_table: Table = self.get_current_table(connection, table.name)
+        columns_str: str = ', '.join([c.name for c in curr_table.columns])
+        cursor: sqlite3.Cursor = connection.cursor()
+        backup_table_name: str = table.name + '_bk'
         sql_cmd = 'ALTER TABLE [{t}] RENAME TO [{bt}];'.format(t=table.name, bt=backup_table_name)
         cursor.execute(sql_cmd)
         cursor.execute(table.get_create_cmd())
-        cursor.execute('INSERT INTO [{t}]({c}) SELECT {c} FROM [{bt}];'.format(t=table.name, bt=backup_table_name, c=columns_str))
+        cursor.execute(
+            'INSERT INTO [{t}]({c}) SELECT {c} FROM [{bt}];'.format(t=table.name, bt=backup_table_name, c=columns_str))
         cursor.execute('DROP TABLE [{bt}];'.format(bt=backup_table_name))
 
     def add_column_to_table(self, connection: sqlite3.Connection, table_name: str, column: Column) -> None:
-        col_str = '[{n}] {t}'.format(n=column.name, t=column.type)  # type: str
+        col_str: str = '[{n}] {t}'.format(n=column.name, t=column.type)
         if not column.nullable:
             col_str += ' NOT NULL'
         # if self.primary_key is not None and self.primary_key == column.name:
         #     col_str += ' PRIMARY KEY'
-        sql_cmd = 'ALTER TABLE [{t}] ADD COLUMN {c}'.format(t=table_name, c=col_str)
-        cursor = connection.cursor()
+        sql_cmd: str = 'ALTER TABLE [{t}] ADD COLUMN {c}'.format(t=table_name, c=col_str)
+        cursor: sqlite3.Cursor = connection.cursor()
         cursor.execute(sql_cmd)
 
     def get_current_table(self, connection: sqlite3.Connection, table_name: str) -> Table:
-        res = Table()  # type: Table
+        res: Table = Table()
         res.name = table_name
 
-        cursor = connection.cursor()
+        cursor: sqlite3.Cursor = connection.cursor()
         cursor.execute('PRAGMA table_info(\'{t}\');'.format(t=table_name))
         # cid_index = utils.first_index_where(cursor.description, lambda t: t[0] == 'cid')
         # name_index = utils.first_index_where(cursor.description, lambda t: t[0] == 'name')
@@ -273,8 +276,8 @@ class Database(JsonDeserializable):
         return res
 
     @staticmethod
-    def get_column_indices_from_cursor(cursor: sqlite3.Cursor) -> Dict:
-        res = {}
+    def get_column_indices_from_cursor(cursor: sqlite3.Cursor) -> Dict[str, int]:
+        res: Dict[str, int] = {}
         for i, desc_tuple in enumerate(cursor.description):
             res[desc_tuple[0]] = i
         return res
@@ -285,25 +288,27 @@ class Database(JsonDeserializable):
     #     self.insert_data_table_collection(conn, dtc)
     #     conn.close()
 
-    def save_data_set(self, connection: sqlite3.Connection, data_table_collection: DataSet):
+    def save_data_set(self, connection: sqlite3.Connection, data_table_collection: DataSet) -> None:
+        table_name: Table
         for table_name in data_table_collection.tables:
             self.save_data_table(connection, data_table_collection.tables[table_name])
 
     def save_data_table(self, connection: sqlite3.Connection, data_table: DataTable):
-        existing_ids = self.get_existing_ids(connection, data_table.table_name)  # type: Set
-        new_rows = [r for r in data_table.rows.values() if r.identity not in existing_ids]
+        existing_ids: Set = self.get_existing_ids(connection, data_table.table_name)
+        new_rows: List[DataRow] = [r for r in data_table.rows.values() if r.identity not in existing_ids]
         self.insert_rows(connection, new_rows)
         existing_rows = [r for r in data_table.rows.values() if r.identity in existing_ids]
         self.update_rows(connection, existing_rows)
 
     def insert_rows(self, connection: sqlite3.Connection, rows: List[DataRow]) -> None:
-        cursor = connection.cursor()  # type: sqlite3.Connection
-        groups = itertools.groupby(rows, lambda r: r.table_name)
+        cursor: sqlite3.Cursor = connection.cursor()
+        groups: Iterator[Tuple[str, Iterator[DataRow]]] = itertools.groupby(rows, lambda r: r.table_name)
         for table_name, table_rows in groups:
             table = [t for t in self.tables if t.name == table_name][0]  # type: Table
             columns = ', '.join([c.name for c in table.columns])  # type: str
             values_placeholder = ', '.join(['?' for _ in table.columns])  # type: str
-            sql_cmd = 'INSERT into [{t}] ({c}) values ({v})'.format(t=table.name, c=columns, v=values_placeholder)  # type: str
+            sql_cmd = 'INSERT into [{t}] ({c}) values ({v})'.format(t=table.name, c=columns,
+                                                                    v=values_placeholder)  # type: str
             values = [table.row_to_tuple_for_insert(row) for row in table_rows]
             cursor.executemany(sql_cmd, values)
 
@@ -315,7 +320,8 @@ class Database(JsonDeserializable):
             values_placeholder = ', '.join(['?' for _ in table.columns])  # type: str
             sql_cmd = 'INSERT into [{t}] ({c}) values ({v})'.format(t=table.name, c=columns,
                                                                     v=values_placeholder)  # type: str
-            values = [table.row_to_tuple_for_insert(row) for row in data_table_collection.tables[table_name].rows.values()]
+            values = [table.row_to_tuple_for_insert(row) for row in
+                      data_table_collection.tables[table_name].rows.values()]
             cursor.executemany(sql_cmd, values)
 
     def update_rows(self, connection: sqlite3.Connection, rows: List[DataRow]) -> None:
@@ -324,7 +330,8 @@ class Database(JsonDeserializable):
         for table_name, rows in groups:
             table = [t for t in self.tables if t.name == table_name][0]  # type: Table
             values = ', '.join([c.name + '=?' for c in table.columns if c.name != table.primary_key])  # type: str
-            sql_cmd = 'UPDATE [{t}] SET {v} where {pk}=?'.format(t=table.name, pk=table.primary_key, v=values)  # type: str
+            sql_cmd = 'UPDATE [{t}] SET {v} where {pk}=?'.format(t=table.name, pk=table.primary_key,
+                                                                 v=values)  # type: str
             values = [table.row_to_tuple_for_update(row) for row in rows]
             cursor.executemany(sql_cmd, values)
 
@@ -342,58 +349,63 @@ class Database(JsonDeserializable):
         else:
             raise RuntimeError('Table {t} not found'.format(t=table_name))
 
-    def query(self, connection: sqlite3.Connection, table_name: str, id_object: object, include_children: bool) -> DataSet:
-        res = DataSet()
-        dt = DataTable(table_name)  # type: DataTable
-        cursor = connection.cursor()  # type: sqlite3.Cursor
-        table = self.get_table(table_name)  # type: Table
-        column_names = [c.name for c in table.columns]
-        column_str = ', '.join(column_names)  # type: str
+    def query(self, connection: sqlite3.Connection, table_name: str, id_object: object,
+              include_children: bool) -> DataSet:
+        res: DataSet = DataSet()
+        dt: DataTable = DataTable(table_name)
+        cursor: sqlite3.Cursor = connection.cursor()
+        table: Table = self.get_table(table_name)
+        column_names: List[str] = [c.name for c in table.columns]
+        column_str: str = ', '.join(column_names)
         if id_object is not None:
-            cursor.execute('SELECT {c} FROM [{t}] WHERE {pk}=?;'.format(c=column_str, t=table_name, pk=table.primary_key), (id_object,))
+            cursor.execute(
+                f'SELECT {column_str} FROM [{table_name}] WHERE {table.primary_key}=?;',
+                (id_object,))
         else:
-            cursor.execute('SELECT {c} FROM [{t}];'.format(c=column_str, t=table_name))
+            cursor.execute(f'SELECT {column_str} FROM [{table_name}];')
         row_tuples = cursor.fetchall()
         for row_tuple in row_tuples:
-            row = DataRow(table_name, row_tuple[utils.first_index_of(column_names, table.primary_key)])  # type: DataRow
+            row: DataRow = DataRow(table_name, row_tuple[utils.first_index_of(column_names, table.primary_key)])
+            column_name: str
             for column_name in column_names:
-                idx = utils.index_of(column_names, column_name)
+                idx: List[int] = utils.index_of(column_names, column_name)
                 if len(idx) > 0:
                     row.put(column_name, row_tuple[idx[0]])
             dt.merge_rows([row])
         res.tables[dt.table_name] = dt
         return res
 
-    def raw_query(self, connection: sqlite3.Connection, table_name: str, column_list: List[str], where_clause: str, query_params: Tuple) -> DataSet:
-        table = self.get_table(table_name)  # type: Table
+    def raw_query(self, connection: sqlite3.Connection, table_name: str, column_list: List[str], where_clause: str,
+                  query_params: Tuple) -> DataSet:
+        table: Table = self.get_table(table_name)
         if table is None:
-            raise ValueError('Table ' + table_name + ' is not defined')
+            raise ValueError(f'Table {table_name} is not defined')
         if table.primary_key not in column_list:
             column_list.insert(0, table.primary_key)
-        cursor = connection.cursor()  # type: sqlite3.Cursor
+        cursor: sqlite3.Cursor = connection.cursor()
         if where_clause is None:
-            query = 'SELECT {c} FROM [{t}]'.format(c=', '.join(column_list), t=table_name)
+            query = f'SELECT {", ".join(column_list)} FROM [{table_name}]'
         else:
-            query = 'SELECT {c} FROM [{t}] where {w}'.format(c=', '.join(column_list), t=table_name, w=where_clause)
+            query = f'SELECT {", ".join(column_list)} FROM [{table_name}] where {where_clause}'
         if query_params is None:
             cursor.execute(query)
         else:
             cursor.execute(query, query_params)
         row_tuples = cursor.fetchall()
 
-        res = DataSet()
-        dt = DataTable(table_name)  # type: DataTable
+        res: DataSet = DataSet()
+        dt: DataTable = DataTable(table_name)
         for row_tuple in row_tuples:
-            row = DataRow(table_name, row_tuple[utils.first_index_of(column_list, table.primary_key)])  # type: DataRow
+            row: DataRow = DataRow(table_name, row_tuple[utils.first_index_of(column_list, table.primary_key)])
             for column_name in column_list:
-                idx = utils.index_of(column_list, column_name)
+                idx: List[int] = utils.index_of(column_list, column_name)
                 if len(idx) > 0:
                     row.put(column_name, row_tuple[idx[0]])
             dt.merge_rows([row])
         res.tables[dt.table_name] = dt
         return res
 
-    def query_row(self, connection: sqlite3.Connection, table_name: str, id_object: object):
+    def query_row(self, connection: sqlite3.Connection, table_name: str, id_object: object) -> DataRow or None:
         ds = self.query(connection, table_name, id_object, True)
         dt = ds.tables[table_name]
         if len(dt.rows) > 0:
@@ -401,7 +413,8 @@ class Database(JsonDeserializable):
         else:
             return None
 
-    def query_object(self, connection: sqlite3.Connection, obj_type: Type, table_name: str, id_object: object) -> DbSerializable:
+    def query_object(self, connection: sqlite3.Connection, obj_type: Type, table_name: str,
+                     id_object: object) -> DbSerializable or None:
         ds = self.query(connection, table_name, id_object, True)
         dt = ds.tables[table_name]
         if len(dt.rows) == 0:
@@ -419,5 +432,3 @@ class Database(JsonDeserializable):
         for row in rows:
             res.add(row[0])
         return res
-
-

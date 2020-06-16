@@ -1,4 +1,5 @@
 import uuid
+from pathlib import Path
 from typing import List, Optional, Dict
 import pickle
 import pathlib
@@ -14,12 +15,12 @@ from jsonutils import JsonDeserializable
 
 class GetUpdatesResponse(JsonDeserializable):
     def __init__(self):
-        self.ok = False  # type: bool
-        self.result = []  # type: List[Update]
+        self.ok: bool = False
+        self.result: List[Update] = []
 
     @classmethod
     def from_json(cls, json_obj: Dict) -> 'GetUpdatesResponse':
-        res = GetUpdatesResponse()
+        res: GetUpdatesResponse = GetUpdatesResponse()
         res.ok = json_obj['ok']
         res.result = [Update.from_json(x) for x in json_obj['result']]
         return res
@@ -27,16 +28,16 @@ class GetUpdatesResponse(JsonDeserializable):
 
 class BotConfig(JsonDeserializable):
     def __init__(self):
-        self.database_definition_file = None  # type: Optional[str]
-        self.object_provider_file = None  # type: str
-        self.get_updates_timeout = 0  # type: int
-        self.tokens = {}  # type: Dict[str, str]
+        self.database_definition_file: Optional[str] = None
+        self.object_provider_file: str = None
+        self.get_updates_timeout: int = 0
+        self.tokens: Dict[str, str] = {}
         # self.specific_config = {}  # type: Dict
-        self.administrator_id = 0  # type: int
+        self.administrator_id: int = 0
 
     @classmethod
     def from_json(cls, json_object: Dict) -> 'BotConfig':
-        res = BotConfig()  # type: BotConfig
+        res: BotConfig = BotConfig()
         res.database_definition_file = json_object.get('database_definition_file')
         res.object_provider_file = json_object.get('object_provider_file')
         res.get_updates_timeout = json_object.get('get_updates_timeout')
@@ -48,20 +49,21 @@ class BotConfig(JsonDeserializable):
 
 class Update(DbSerializable, JsonDeserializable):
     def __init__(self):
-        self.id_update = 0  # type: int
-        self.message = None  # type: Message
-        self.callback_query = None  # type: CallbackQuery
+        self.id_update: int = 0
+        self.message: Message or None = None
+        self.callback_query: CallbackQuery or None = None
 
     @classmethod
     def from_json(cls, json_obj: Dict) -> 'Update':
-        res = Update()  # type: Update
+        res: Update = Update()
         res.id_update = json_obj['update_id']
         res.message = Message.from_json(json_obj['message']) if 'message' in json_obj else None
         res.callback_query = CallbackQuery.from_json(json_obj['callback_query']) if 'callback_query' in json_obj else None
         return res
 
+    @property
     def to_data_set(self) -> DataSet:
-        res = DataSet()  # type: DataSet
+        res: DataSet = DataSet()
         row = DataRow('update', self.id_update)
         row.put('id_update', self.id_update)
         row.put('id_message', self.message.id_message if self.message is not None else None)
@@ -73,30 +75,30 @@ class Update(DbSerializable, JsonDeserializable):
 
 class ChatState(object):
     def __init__(self):
-        self.current_handler_name = None  # type: str
-        self.last_time = 0.  # type: float
-        self.chat_id = 0  # type: int
-        self.data = {}  # type: Dict
+        self.current_handler_name: str = None
+        self.last_time: float = 0.
+        self.chat_id: int = 0
+        self.data: Dict = {}
 
 
 class Chat(DbSerializable, JsonDeserializable):
     def __init__(self):
-        self.id_chat = 0  # type: int
-        self.first_name = None  # type: str
-        self.last_name = None  # type: str
-        self.type = None  # type: str
+        self.id_chat: int = 0
+        self.first_name: str = None
+        self.last_name: str = None
+        self.type: str = None
 
     @classmethod
     def from_json(cls, json_obj: Dict) -> 'Chat':
-        res = Chat()  # type: Chat
+        res: Chat = Chat()
         res.id_chat = json_obj['id']
         res.type = json_obj['type']
         res.first_name = json_obj.get('first_name')
         res.last_name = json_obj.get('last_name')
         return res
 
-    def to_data_set(self):
-        res = DataSet()
+    def to_data_set(self) -> DataSet:
+        res: DataSet = DataSet()
         row = DataRow('chat', self.id_chat)
         row.put('id_chat', self.id_chat)
         row.put('type', self.type)
@@ -107,7 +109,7 @@ class Chat(DbSerializable, JsonDeserializable):
 
     @classmethod
     def from_data_set(cls, ds: DataSet) -> 'Chat':
-        res = Chat()  # type: Chat
+        res: Chat = Chat()
         table = ds.tables['chat']
         row = list(table.rows.values())[0]
         res.id_chat = row.get('id_chat')
@@ -126,8 +128,8 @@ class Chat(DbSerializable, JsonDeserializable):
         res.last_name = row.get('last_name')
         return res
 
-    def retrieve_chat_state(self) -> ChatState:
-        folder = pathlib.Path('chat')  # type: pathlib.Path
+    def retrieve_chat_state(self) -> ChatState or None:
+        folder: pathlib.Path = pathlib.Path('chat')
         if not folder.exists():
             return None
         filename = folder.joinpath('{id}.pickle'.format(id=self.id_chat))
@@ -139,34 +141,34 @@ class Chat(DbSerializable, JsonDeserializable):
             return None
 
     def save_chat_state(self, chat_state: ChatState) -> None:
-        folder = pathlib.Path('chat')  # type: pathlib.Path
+        folder: pathlib.Path = pathlib.Path('chat')
         if not folder.exists():
             folder.mkdir()
-        filename = folder.joinpath('{id}.pickle'.format(id=self.id_chat))
+        filename = folder.joinpath(f'{self.id_chat}.pickle')
         with open(str(filename), 'wb') as fobj:
             pickle.dump(chat_state, fobj)
 
-    def remove_chat_state(self):
-        folder = pathlib.Path('chat')  # type: pathlib.Path
+    def remove_chat_state(self) -> None:
+        folder: pathlib.Path = pathlib.Path('chat')
         if not folder.exists():
             return
-        filename = folder.joinpath('{id}.pickle'.format(id=self.id_chat))
+        filename: Path = folder.joinpath(f'{self.id_chat}.pickle')
         if filename.exists():
             filename.unlink()
 
 
 class Message(DbSerializable, JsonDeserializable):
     def __init__(self):
-        self.id_message = 0  # type: int
-        self._from = None  # type: Optional[User]
-        self.date = None  # type: Optional[int]
-        self.text = None  # type: Optional[str]
-        self.chat = None  # type: Optional[Chat]
-        self.photo = []  # type: List[PhotoSize]
+        self.id_message: int = 0
+        self._from: Optional[User] = None
+        self.date: Optional[int] = None
+        self.text: Optional[str] = None
+        self.chat: Optional[Chat] = None
+        self.photo: List[PhotoSize] = []
 
     @classmethod
     def from_json(cls, json_obj: Dict) -> 'Message':
-        res = Message()  # type: Message
+        res: Message = Message()
         res.id_message = json_obj['message_id']
         res._from = User.from_json(json_obj['from'])
         res.chat = Chat.from_json(json_obj['chat'])
@@ -176,8 +178,8 @@ class Message(DbSerializable, JsonDeserializable):
         return res
 
     def to_data_set(self) -> DataSet:
-        res = DataSet()
-        row = DataRow('message', self.id_message)
+        res: DataSet = DataSet()
+        row: DataRow = DataRow('message', self.id_message)
         row.put('id_message', self.id_message)
         row.put('id_user', self._from.id_user)
         row.put('id_chat', self.chat.id_chat)
@@ -187,7 +189,8 @@ class Message(DbSerializable, JsonDeserializable):
         res.merge(self._from.to_data_set())
         res.merge(self.chat.to_data_set())
         if self.photo is not None:
-            for photo_size in self.photo:  # type: PhotoSize
+            photo_size: PhotoSize
+            for photo_size in self.photo:
                 res.merge(photo_size.to_data_set())
                 res.add_column_to_table('photo_size', 'id_message', self.id_message)
         return res
@@ -195,16 +198,16 @@ class Message(DbSerializable, JsonDeserializable):
 
 class CallbackQuery(DbSerializable, JsonDeserializable):
     def __init__(self):
-        self.id_callback_query = ''  # type: str
-        self._from = None  # type: User
-        self.message = None  # type: Message
-        self.inline_message_id = None  # type: str
-        self.chat_instance = None  # type: str
-        self.data = None  # type: str
+        self.id_callback_query: str = ''
+        self._from: User = None
+        self.message: Message = None
+        self.inline_message_id: str = None
+        self.chat_instance: str = None
+        self.data: str = None
 
     @classmethod
     def from_json(cls, json_obj: Dict) -> 'CallbackQuery':
-        res = CallbackQuery()  # type: CallbackQuery
+        res: CallbackQuery = CallbackQuery()
         res.id_callback_query = json_obj['id']
         res._from = User.from_json(json_obj['from'])
         res.message = Message.from_json(json_obj['message']) if 'message' in json_obj else None
@@ -214,8 +217,8 @@ class CallbackQuery(DbSerializable, JsonDeserializable):
         return res
 
     def to_data_set(self) -> DataSet:
-        res = DataSet()
-        row = DataRow('callback_query', self.id_callback_query)
+        res: DataSet = DataSet()
+        row: DataRow = DataRow('callback_query', self.id_callback_query)
         row.put('id_callback_query', self.id_callback_query)
         row.put('id_user', self._from.id_user)
         row.put('id_message', self.message.id_message)
@@ -230,16 +233,16 @@ class CallbackQuery(DbSerializable, JsonDeserializable):
 
 class User(DbSerializable, JsonDeserializable):
     def __init__(self):
-        self.id_user = 0  # type: int
-        self.is_bot = False  # type: bool
-        self.first_name = None  # type: Optional[str]
-        self.last_name = None  # type: Optional[str]
-        self.username = None  # type: Optional[str]
-        self.language_code = None  # type: Optional[str]
+        self.id_user: int = 0
+        self.is_bot: bool = False
+        self.first_name: Optional[str] = None
+        self.last_name: Optional[str] = None
+        self.username: Optional[str] = None
+        self.language_code: Optional[str] = None
 
     @classmethod
     def from_json(cls, json_obj: Dict) -> 'User':
-        res = User()  # type: User
+        res: User = User()
         res.id_user = json_obj['id']
         res.is_bot = json_obj['is_bot']
         res.first_name = json_obj['first_name']
@@ -249,8 +252,8 @@ class User(DbSerializable, JsonDeserializable):
         return res
 
     def to_data_set(self):
-        res = DataSet()
-        row = DataRow('user', self.id_user)
+        res: DataSet = DataSet()
+        row: DataRow = DataRow('user', self.id_user)
         row.put('id_user', self.id_user)
         row.put('is_bot', self.is_bot)
         row.put('first_name', self.first_name)
@@ -263,15 +266,15 @@ class User(DbSerializable, JsonDeserializable):
 
 class PhotoSize(DbSerializable, JsonDeserializable):
     def __init__(self):
-        self.file_id = None  # type: str
-        self.file_unique_id = None  # type: str
-        self.width = 0  # type: int
-        self.height = 0  # type: int
-        self.file_size = 0  # type: int
+        self.file_id: str = None
+        self.file_unique_id: str = None
+        self.width: int = 0
+        self.height: int = 0
+        self.file_size: int = 0
 
     @classmethod
     def from_json(cls, json_object: Dict) -> 'PhotoSize':
-        res = PhotoSize()
+        res: PhotoSize = PhotoSize()
         res.file_id = json_object['file_id']
         res.file_unique_id = json_object['file_unique_id']
         res.width = json_object['width']
@@ -280,8 +283,8 @@ class PhotoSize(DbSerializable, JsonDeserializable):
         return res
 
     def to_data_set(self) -> DataSet:
-        res = DataSet()
-        row = DataRow('photo_size', self.file_id)
+        res: DataSet = DataSet()
+        row: DataRow = DataRow('photo_size', self.file_id)
         row.put('file_id', self.file_id)
         row.put('file_unique_id', self.file_unique_id)
         row.put('width', self.width)
@@ -293,11 +296,11 @@ class PhotoSize(DbSerializable, JsonDeserializable):
 
 class Schedule(object):
     def __init__(self):
-        self.id_schedule = uuid.uuid1()  # type: uuid
-        self.start = 0  # type: int
-        self.end = 0  # type: int
-        self.last_execution = 0  # type: int
-        self.interval_seconds = 0  # type: int
+        self.id_schedule: uuid = uuid.uuid1()
+        self.start: int = 0
+        self.end: int = 0
+        self.last_execution: int = 0
+        self.interval_seconds: int = 0
 
     def next_execution(self) -> Optional[int]:
         if self.last_execution == 0:
@@ -332,13 +335,13 @@ class Schedule(object):
 
 class Task(DbSerializable):
     def __init__(self):
-        self.id_task = uuid.uuid1()  # type: uuid
-        self.chat = None  # type: Chat
-        self.schedule = None  # type: Schedule
+        self.id_task: uuid = uuid.uuid1()
+        self.chat: Chat = None
+        self.schedule: Schedule = None
 
     def to_data_set(self) -> DataSet:
-        res = DataSet()  # type: DataSet
-        row = DataRow('task', self.id_task)  # type: DataRow
+        res: DataSet = DataSet()
+        row: DataRow = DataRow('task', self.id_task)
         row.put('id_task', str(self.id_task))
         res.merge_row(row)
         return res
@@ -349,20 +352,20 @@ class Task(DbSerializable):
 
     @classmethod
     def get_by_id(cls, database: Database, connection: sqlite3.Connection, id_object: object) -> 'Task':
-        res = Task()
-        row = database.query_row(connection, 'task', id_object)
+        res: Task = Task()
+        row: DataRow or None = database.query_row(connection, 'task', id_object)
         res.chat = Chat.get_by_id(database, connection, row.get('id_chat'))
         return res
 
 
 class Profile(DbSerializable):
     def __init__(self):
-        self.id_profile = uuid.uuid1()  # type: uuid
-        self.name = None  # type: str
+        self.id_profile: uuid = uuid.uuid1()
+        self.name: str = None
 
     def to_data_set(self) -> DataSet:
-        res = DataSet()  # type: DataSet
-        row = DataRow('id_profile', self.id_profile)  # type: DataRow
+        res: DataSet = DataSet()
+        row: DataRow = DataRow('id_profile', self.id_profile)
         row.put('id_profile', str(self.id_profile))
         row.put('name', self.name)
         res.merge_row(row)
@@ -375,9 +378,9 @@ class Profile(DbSerializable):
 
 class UserProfile(DbSerializable):
     def __init__(self):
-        self.id_user_profile = uuid.uuid1()  # type: uuid
-        self.id_user = 0  # type: int
-        self.id_user_profile = None  # type: uuid
+        self.id_user_profile: uuid = uuid.uuid1()
+        self.id_user: int = 0
+        self.id_user_profile: uuid = None
 
     def to_data_set(self) -> DataSet:
         pass

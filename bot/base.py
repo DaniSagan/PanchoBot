@@ -8,9 +8,9 @@ from textformatting import TextFormatter, MessageStyle
 
 class InlineKeyboardButton(object):
     def __init__(self):
-        self.text = ''  # type: str
-        self.url = ''  # type: str
-        self.callback_data = ''  # type: str
+        self.text: str = ''
+        self.url: str = ''
+        self.callback_data: str = ''
 
     def to_json(self) -> Dict:
         if self.url and not self.callback_data:
@@ -21,14 +21,15 @@ class InlineKeyboardButton(object):
 
 class InlineKeyboardMarkup(object):
     def __init__(self):
-        self.inline_keyboard = []  # type: List[List[InlineKeyboardButton]]
+        self.inline_keyboard: List[List[InlineKeyboardButton]] = []
 
     @staticmethod
     def from_str_list(str_list: List[str]) -> 'InlineKeyboardMarkup':
-        res = InlineKeyboardMarkup()
+        res: InlineKeyboardMarkup = InlineKeyboardMarkup()
         res.inline_keyboard.append([])
+        s: str
         for s in str_list:
-            button = InlineKeyboardButton()
+            button: InlineKeyboardButton = InlineKeyboardButton()
             button.text = s
             button.callback_data = s
             res.inline_keyboard[0].append(button)
@@ -41,11 +42,11 @@ class InlineKeyboardMarkup(object):
 class BotBase(object):
 
     def __init__(self):
-        self.database = None  # type: Database
-        self.running = True  # type: bool
-        self.tokens = {}  # type: Dict[str, str]
-        self.scheduler = None  # type: Scheduler
-        self.message_handlers = {}  # type: Dict[str, type]
+        self.database: Database = None
+        self.running: bool = True
+        self.tokens: Dict[str, str] = {}
+        self.scheduler: Scheduler = None
+        self.message_handlers: Dict[str, type] = {}
 
     def get_updates(self) -> GetUpdatesResponse:
         raise NotImplementedError()
@@ -79,13 +80,15 @@ class BotBase(object):
 
 class MessageHandlerBase(object):
     def __init__(self):
-        self.handler_name = ''  # type: str
+        self.handler_name: str = ''
 
-    def process_message(self, message: Message, bot: BotBase, chat_state: ChatState = None):
+    def process_message(self, message: Message, bot: BotBase, chat_state: ChatState = None) -> None:
         raise NotImplementedError()
 
-    def process_callback_query(self, callback_query: CallbackQuery, bot: BotBase, chat_state: ChatState = None):
-        bot.send_message(callback_query.message.chat, 'process_callback_query not defined for handler ' + self.handler_name, MessageStyle.NONE)
+    def process_callback_query(self, callback_query: CallbackQuery, bot: BotBase, chat_state: ChatState = None) -> None:
+        bot.send_message(callback_query.message.chat,
+                         f'process_callback_query not defined for handler {self.handler_name}',
+                         MessageStyle.NONE)
 
     @staticmethod
     def get_help() -> TextFormatter:

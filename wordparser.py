@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Dict
+from typing import Dict, Any
 from typing import List
 from typing import Tuple
 
@@ -20,20 +20,23 @@ class GroupQuantityType(Enum):
 
 
 class ParserGroup(object):
-
-    TYPES = {'w': ParserType.WORD, 'n': ParserType.INTEGER, 'f': ParserType.FLOAT, 'b': ParserType.BOOL, 't': ParserType.TIME_INTERVAL}
+    TYPES = {'w': ParserType.WORD,
+             'n': ParserType.INTEGER,
+             'f': ParserType.FLOAT,
+             'b': ParserType.BOOL,
+             't': ParserType.TIME_INTERVAL}
 
     def __init__(self):
-        self.name = ''  # type: str
-        self.type = ParserType.NONE  # type: ParserType
-        self.quantity = 0  # type: int
-        self.quantity_type = GroupQuantityType.SINGLE  # type: GroupQuantityType
+        self.name: str = ''
+        self.type: ParserType = ParserType.NONE
+        self.quantity: int = 0
+        self.quantity_type: GroupQuantityType = GroupQuantityType.SINGLE
 
     @staticmethod
     def from_str(s: str) -> 'ParserGroup':
-        res = ParserGroup()
+        res: ParserGroup = ParserGroup()
         try:
-            data = s.split(':')
+            data: List[str] = s.split(':')
             res.name = data[0]
             group_def = data[1]
             if len(group_def) == 1:
@@ -43,7 +46,7 @@ class ParserGroup(object):
             elif len(group_def) >= 2:
                 res.type = ParserGroup.TYPES[group_def[-1]]
                 if group_def[0] == '*':
-                    res.quantity = 2**32
+                    res.quantity = 2 ** 32
                     res.quantity_type = GroupQuantityType.ANY
                 else:
                     res.quantity = int(group_def[:-1])
@@ -61,16 +64,15 @@ class ParserGroup(object):
 
 class MatchResult(object):
     def __init__(self):
-        self.success = False  # type: bool
-        self.results = {}  # Dict[str, str]
+        self.success: bool = False
+        self.results: Dict[str, Any] = {}
 
 
 class WordParser(object):
-
-    INTERVALS = {'d': 86400., 'h': 3600., 'm': 60., 's': 1.}  # type: Dict[str, float]
+    INTERVALS: Dict[str, float] = {'d': 86400., 'h': 3600., 'm': 60., 's': 1.}
 
     def __init__(self):
-        self.groups = []  # type: List[ParserGroup]
+        self.groups: List[ParserGroup] = []
 
     @staticmethod
     def from_str(s: str) -> 'WordParser':
@@ -155,4 +157,3 @@ class WordParser(object):
         for group in groups:
             res += WordParser.INTERVALS[group[1]] * group[0]
         return res
-

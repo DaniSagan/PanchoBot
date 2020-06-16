@@ -5,15 +5,16 @@ from textformatting import MessageStyle, TextFormatter
 
 
 class BaseMessageHandler(MessageHandlerBase):
-    def process_message(self, message: Message, bot: BotBase, chat_state: ChatState = None):
+    def process_message(self, message: Message, bot: BotBase, chat_state: ChatState = None) -> None:
         if message.text is not None:
             self.process_text(message, bot, chat_state)
 
-    def process_text(self, message: Message, bot: BotBase, chat_state: ChatState):
+    def process_text(self, message: Message, bot: BotBase, chat_state: ChatState) -> None:
         if message.text.lower() == 'status':
             if chat_state is not None:
-                bot.send_message(message.chat, 'Current handler: {h}'.format(h=chat_state.current_handler_name),
-                                  MessageStyle.NONE)
+                bot.send_message(message.chat,
+                                 f'Current handler: {chat_state.current_handler_name}',
+                                 MessageStyle.NONE)
             else:
                 bot.send_message(message.chat, 'OK', MessageStyle.NONE)
         elif message.text.lower() == 'quit':

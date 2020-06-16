@@ -1,5 +1,5 @@
 import json
-from typing import List, Dict
+from typing import List, Dict, Any, Union
 
 import time
 from lxml.html import HtmlElement
@@ -9,20 +9,20 @@ from bot.base import MessageHandlerBase, BotBase, InlineKeyboardMarkup, InlineKe
 from data import Message, ChatState, CallbackQuery
 from jsonutils import JsonSerializable, JsonDeserializable
 from textformatting import MessageStyle, TextFormatter
-from wordparser import WordParser
+from wordparser import WordParser, MatchResult
 
 
 class Stop(JsonSerializable, JsonDeserializable):
     def __init__(self):
-        self.id_stop = 0  # type: int
-        self.name = ''  # type: str
+        self.id_stop: int = 0
+        self.name: str = ''
 
     def to_json(self) -> Dict:
         return {'id_stop': self.id_stop, 'name': self.name}
 
     @classmethod
     def from_json(cls, json_object: Dict) -> 'Stop':
-        res = Stop()
+        res: Stop = Stop()
         res.id_stop = json_object['id_stop']
         res.name = json_object['name']
         return res
@@ -30,9 +30,9 @@ class Stop(JsonSerializable, JsonDeserializable):
 
 class SubLine(JsonSerializable, JsonDeserializable):
     def __init__(self):
-        self.id_sub_line = ''  # type: str
-        self.name = ''  # type: str
-        self.stops = []  # type: List[Stop]
+        self.id_sub_line: str = ''
+        self.name: str = ''
+        self.stops: List[Stop] = []
 
     def to_json(self) -> Dict:
         return {
@@ -43,7 +43,7 @@ class SubLine(JsonSerializable, JsonDeserializable):
 
     @classmethod
     def from_json(cls, json_object: Dict) -> 'JsonDeserializable':
-        res = SubLine()  # type: SubLine
+        res: SubLine = SubLine()
         res.id_sub_line = json_object['id_sub_line']
         res.name = json_object['name']
         res.stops = [Stop.from_json(j) for j in json_object['stops']]
@@ -54,9 +54,9 @@ class Line(JsonSerializable, JsonDeserializable):
 
     def __init__(self):
         self.name = ''
-        self.sub_line_forth = None  # type: SubLine
-        self.sub_line_back = None  # type: SubLine
-        self.schedule = ''  # type: str
+        self.sub_line_forth: SubLine or None = None
+        self.sub_line_back: SubLine or None = None
+        self.schedule: str = ''
 
     def to_json(self) -> Dict:
         return {
@@ -68,7 +68,7 @@ class Line(JsonSerializable, JsonDeserializable):
 
     @classmethod
     def from_json(cls, json_object: Dict) -> 'Line':
-        res = Line()  # type: Line
+        res: Line = Line()
         res.name = json_object['name']
         res.sub_line_forth = SubLine.from_json(json_object['sub_line_forth'])
         res.sub_line_back = SubLine.from_json(json_object['sub_line_back'])
@@ -80,22 +80,23 @@ class Line(JsonSerializable, JsonDeserializable):
 
 
 class TuaLines(JsonSerializable, JsonDeserializable):
-    LINE_NAMES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'j', 'k', 'l', 'm', 'o', 'buho']
+    LINE_NAMES: List[str] = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'j', 'k', 'l', 'm', 'o', 'buho']
 
     def __init__(self):
-        self.lines = []  # type: List[Line]
+        self.lines: List[Line] = []
 
     @classmethod
     def from_json(cls, json_object: Dict) -> 'TuaLines':
-        res = TuaLines()  # type: TuaLines
+        res: TuaLines = TuaLines()
         res.lines = [Line.from_json(j) for j in json_object['lines']]
         return res
 
     def to_json(self) -> Dict:
-        return {'lines': [l.to_json() for l in self.lines]}
+        return {'lines': [line.to_json() for line in self.lines]}
 
     def get_sub_line(self, sub_line_name: str):
-        line = utils.first_or_default_where(self.lines, lambda l: l.sub_line_forth.id_sub_line == sub_line_name or l.sub_line_back.id_sub_line == sub_line_name)  # type: Line
+        line: Line = utils.first_or_default_where(self.lines,
+                                                  lambda l: l.sub_line_forth.id_sub_line == sub_line_name or l.sub_line_back.id_sub_line == sub_line_name)
         if line is not None:
             if line.sub_line_forth.id_sub_line == sub_line_name:
                 return line.sub_line_forth
@@ -105,12 +106,12 @@ class TuaLines(JsonSerializable, JsonDeserializable):
 
 class EstimationItem(JsonDeserializable):
     def __init__(self):
-        self.destination = ''  # type: str
-        self.meters = 0  # type: int
-        self.seconds = ''  # type: int
+        self.destination: str = ''
+        self.meters: int = 0
+        self.seconds: int = ''
 
     @classmethod
-    def from_json(cls, json_object: Dict) -> 'EstimationItem':
+    def from_json(cls, json_object: Dict) -> 'EstimationItem' or None:
         if json_object is None:
             return None
         res = EstimationItem()
@@ -122,13 +123,13 @@ class EstimationItem(JsonDeserializable):
 
 class Estimation(JsonDeserializable):
     def __init__(self):
-        self.line = ''  # type: str
-        self.vh_first = None  # type: EstimationItem
-        self.vh_second = None  # type: EstimationItem
+        self.line: str = ''
+        self.vh_first: EstimationItem or None = None
+        self.vh_second: EstimationItem or None = None
 
     @classmethod
     def from_json(cls, json_object: Dict) -> 'Estimation':
-        res = Estimation()  # type: Estimation
+        res: Estimation = Estimation()
         res.line = json_object['line']
         res.vh_first = EstimationItem.from_json(json_object['vh_first'])
         res.vh_second = EstimationItem.from_json(json_object['vh_second'])
@@ -138,16 +139,16 @@ class Estimation(JsonDeserializable):
 class TuaMessageHandler(MessageHandlerBase):
     @staticmethod
     def get_help() -> TextFormatter:
-        res = TextFormatter()
+        res: TextFormatter = TextFormatter()
         res.italic('\U00002328 Tua lines').new_line().normal('Show all lines.').new_line().new_line()
         res.italic('\U00002328 Tua line <line>').new_line().normal('Show all stops for <line>.').new_line().new_line()
         res.italic('\U00002328 Tua update').new_line().normal('Update line info.')
         return res
 
-    def process_message(self, message: Message, bot: BotBase, chat_state: ChatState = None):
+    def process_message(self, message: Message, bot: BotBase, chat_state: ChatState = None) -> None:
         if chat_state is None:
-            word_parser = WordParser.from_str('cmd:w action:w')
-            res = word_parser.match(message.text)
+            word_parser: WordParser = WordParser.from_str('cmd:w action:w')
+            res: MatchResult = word_parser.match(message.text)
             if res.success:
                 if res.results['cmd'].lower() == 'tua':
                     if res.results['action'].lower() == 'update':
@@ -160,27 +161,28 @@ class TuaMessageHandler(MessageHandlerBase):
                         if len(parameters) > 0:
                             self.show_line(message, bot, parameters[0])
 
-    def process_callback_query(self, callback_query: CallbackQuery, bot: BotBase, chat_state: ChatState = None):
+    def process_callback_query(self, callback_query: CallbackQuery, bot: BotBase, chat_state: ChatState = None) -> None:
         if chat_state.data['action'] == 'line':
             self.show_estimation(callback_query, bot, chat_state)
 
-    def retrieve_data(self):
-        lines_json = {'lines': []}
+    def retrieve_data(self) -> None:
+        lines_json: Dict[str, List[Dict]] = {'lines': []}
+        line: str
         for line in TuaLines.LINE_NAMES:
             lines_json['lines'].append(self.retrieve_line(line).to_json())
         with open('dat/app/tua/lines.json', 'w') as fobj:
             json.dump(lines_json, fobj, indent=4)
 
     def retrieve_line(self, name: str) -> Line:
-        res = Line()
+        res: Line = Line()
         res.name = name
         # url = 'http://www.tua.es/es/lineas-y-horarios/linea-{n}.html#paradasIda'.format(n=name)
         # html = utils.get_url_html(url)
 
-        html = utils.get_file_html('dat/app/tua/linea-{n}.html'.format(n=name))  # type: HtmlElement
+        html: HtmlElement = utils.get_file_html('dat/app/tua/linea-{n}.html'.format(n=name))
 
-        sub_line_forth_html = html.xpath('//div[@id="ida"]/div[@class="caja-scroll"]/div')[0]
-        sub_line_forth = SubLine()
+        sub_line_forth_html: object = html.xpath('//div[@id="ida"]/div[@class="caja-scroll"]/div')[0]
+        sub_line_forth: SubLine = SubLine()
         sub_line_forth.id_sub_line = name.upper() + '1'
         sub_line_forth.name = utils.html_strip_str(sub_line_forth_html.xpath('p[@class="nombre-linea"]/strong')[0].text)
         sub_line_forth_stops_html = sub_line_forth_html.xpath('ul[@class="paradas"]/li/a')

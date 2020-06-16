@@ -1,11 +1,12 @@
 import unittest
+from typing import List
 
 import utils
 
 
 class TestUtils(unittest.TestCase):
     def test_indexof_success(self):
-        l = [0, 1, 2, 3, 0]
+        l: List[int] = [0, 1, 2, 3, 0]
         self.assertEqual(len(utils.index_of(l, 0)), 2)
         self.assertTrue(0 in utils.index_of(l, 0))
         self.assertTrue(4 in utils.index_of(l, 0))
@@ -17,5 +18,5 @@ class TestUtils(unittest.TestCase):
         self.assertTrue(3 in utils.index_of(l, 3))
 
     def test_indexof_notsuccess(self):
-        l = [0, 1, 2, 3, 0]
+        l: List[int] = [0, 1, 2, 3, 0]
         self.assertEqual(len(utils.index_of(l, 4)), 0)

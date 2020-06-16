@@ -9,8 +9,9 @@ class MessageStyle(Enum):
 
 
 class TextBase(object):
+
     def __init__(self, text: str):
-        self.text = text
+        self.text: str = text
 
     def format(self, style: MessageStyle):
         raise NotImplementedError()
@@ -28,11 +29,11 @@ class BoldText(TextBase):
     def __init__(self, text: str):
         super().__init__(text)
 
-    def format(self, style: MessageStyle):
+    def format(self, style: MessageStyle) -> str:
         if style == MessageStyle.MARKDOWN:
-            return '*{t}*'.format(t=self.text)
+            return f'*{self.text}*'
         elif style == MessageStyle.HTML:
-            return '<b>{t}</b>'.format(t=self.text)
+            return f'<b>{self.text}</b>'
         else:
             return self.text
 
@@ -41,11 +42,11 @@ class ItalicText(TextBase):
     def __init__(self, text: str):
         super().__init__(text)
 
-    def format(self, style: MessageStyle):
+    def format(self, style: MessageStyle) -> str:
         if style == MessageStyle.MARKDOWN:
-            return '_{t}_'.format(t=self.text)
+            return f'_{self.text}_'
         elif style == MessageStyle.HTML:
-            return '<i>{t}</i>'.format(t=self.text)
+            return f'<i>{self.text}</i>'
         else:
             return self.text
 
@@ -54,18 +55,18 @@ class InlineCode(TextBase):
     def __init__(self, text: str):
         super().__init__(text)
 
-    def format(self, style: MessageStyle):
+    def format(self, style: MessageStyle) -> str:
         if style == MessageStyle.MARKDOWN:
-            return '`{t}`'.format(t=self.text)
+            return f'`{self.text}`'
         elif style == MessageStyle.HTML:
-            return '<code>{t}</code>'.format(t=self.text)
+            return f'<code>{self.text}</code>'
         else:
             return self.text
 
 
 class TextFormatter(object):
     def __init__(self):
-        self.items = []  # type: List[TextBase]
+        self.items: List[TextBase] = []
 
     @staticmethod
     def instance() -> 'TextFormatter':
@@ -96,7 +97,8 @@ class TextFormatter(object):
         return self
 
     def format(self, style: MessageStyle) -> str:
-        res = ''
+        res: str = ''
+        item: TextBase
         for item in self.items:
             res += item.format(style)
         return res

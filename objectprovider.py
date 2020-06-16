@@ -1,23 +1,23 @@
-from typing import Dict, Tuple
+from typing import Dict, Tuple, List, Any
 from typing import List
 
 import sqlite3
 import importlib
 import utils
-from db.database import DataRow, DataTable
+from db.database import DataRow, DataTable, DataSet
 from db.database import Database, DataSet
 from jsonutils import JsonDeserializable
 
 
 class PropertySource(JsonDeserializable):
     def __init__(self):
-        self.name = ""  # type: str
-        self.type_ = ""  # type: str
+        self.name: str = ""
+        self.type_: str = ""
         # self.src_table = ""  # type: str
-        self.src_column = ""  # type: str
+        self.src_column: str = ""
         # self.referenced_table = ""  # type: str
         # self.referenced_column = ""  # type: str
-        self.object_name = ""  # type: str
+        self.object_name: str = ""
 
     @classmethod
     def from_json(cls, json_object: Dict) -> 'PropertySource':
@@ -34,14 +34,14 @@ class PropertySource(JsonDeserializable):
 
 class ObjectDefinition(JsonDeserializable):
     def __init__(self):
-        self.object_name = ""  # type: str
-        self.object_id = ""  # type: str
-        self.table_name = ""  # type: str
-        self.property_sources = []  # type: List[PropertySource]
+        self.object_name: str = ""
+        self.object_id: str = ""
+        self.table_name: str = ""
+        self.property_sources: List[PropertySource] = []
 
     @classmethod
     def from_json(cls, json_object: Dict) -> 'ObjectDefinition':
-        res = ObjectDefinition()
+        res: ObjectDefinition = ObjectDefinition()
         res.object_name = json_object['object_name']
         res.object_id = json_object['object_id']
         res.table_name = json_object['table_name']
@@ -51,48 +51,55 @@ class ObjectDefinition(JsonDeserializable):
 
 class ObjectProvider(JsonDeserializable):
     def __init__(self):
-        self.object_definitions = []  # type: List[ObjectDefinition]
+        self.object_definitions: List[ObjectDefinition] = []
 
     @classmethod
     def from_json(cls, json_object: Dict) -> 'ObjectProvider':
-        res = ObjectProvider()
+        res: ObjectProvider = ObjectProvider()
         res.object_definitions = [ObjectDefinition.from_json(j) for j in json_object['object_definitions']]
         return res
 
     def get_object_definition(self, object_name: str) -> ObjectDefinition:
         # object_name = object_type.__module__ + '.' + object_type.__name__  # type: str
-        object_definition = utils.first_or_default_where(self.object_definitions, lambda d: d.object_name == object_name)  # type: ObjectDefinition
+        object_definition: ObjectDefinition = utils.first_or_default_where(self.object_definitions,
+                                                                           lambda d: d.object_name == object_name)
         return object_definition
 
-    def _query_object(self, database: Database, connection: sqlite3.Connection, object_name: str, id_object: object) -> object:
+    def _query_object(self, database: Database, connection: sqlite3.Connection, object_name: str,
+                      id_object: object) -> object:
         object_definition = self.get_object_definition(object_name)  # type: ObjectDefinition
         if object_definition is None:
             raise ValueError('Object definition for type {t} is not defined'.format(t=object_name))
         module, name = object_name.split('.')
         object_instance = getattr(__import__(module), name)()
         # row = database.query_row(connection, object_definition.table_name, id_object)  # type: DataRow
-        column_list = [s.src_column for s in object_definition.property_sources if s.type_ in ('property', 'object')]
-        ds = database.raw_query(connection, object_definition.table_name, column_list, object_definition.object_id + '=' + str(id_object))  # type: DataSet
-        dt = ds.tables[object_definition.table_name]  # type: DataTable
-        row = list(dt.rows.values())[0]
+        column_list: List[str] = [s.src_column for s in object_definition.property_sources if s.type_ in ('property', 'object')]
+        ds: DataSet = database.raw_query(connection,
+                                         object_definition.table_name,
+                                         column_list,
+                                         object_definition.object_id + '=' + str(id_object))
+        dt: DataTable = ds.tables[object_definition.table_name]
+        row: DataRow = list(dt.rows.values())[0]
         for property_source in object_definition.property_sources:
             if property_source.type_ == 'property':
                 setattr(object_instance, property_source.name, row.items.get(property_source.src_column))
             elif property_source.type_ == 'object':
-                child_object = self._query_object(database, connection, property_source.object_name, row.get(property_source.src_column))
+                child_object = self._query_object(database, connection, property_source.object_name,
+                                                  row.get(property_source.src_column))
                 setattr(object_instance, property_source.name, child_object)
             elif property_source.type_ == 'list':
                 pass
         return object_instance
 
-    def query_objects(self, database: Database, object_name: str, where_clause: str, query_params: Tuple) -> List[object]:
+    def query_objects(self, database: Database, object_name: str, where_clause: str or None, query_params: Tuple or None) -> List[Any]:
         res = []
         with database.create_connection() as connection:
             res = self._query_objects(database, connection, object_name, where_clause, query_params)
         return res
 
-    def _query_objects(self, database: Database, connection: sqlite3.Connection, object_name: str, where_clause: str, query_params: Tuple) -> List[object]:
-        object_definition = self.get_object_definition(object_name)  # type: ObjectDefinition
+    def _query_objects(self, database: Database, connection: sqlite3.Connection, object_name: str, where_clause: str,
+                       query_params: Tuple) -> List[object]:
+        object_definition: ObjectDefinition = self.get_object_definition(object_name)
         if object_definition is None:
             raise ValueError('Object definition for type {t} is not defined'.format(t=object_name))
         name_data = object_name.split('.')
@@ -100,10 +107,15 @@ class ObjectProvider(JsonDeserializable):
         name = name_data[-1]
 
         column_list = [s.src_column for s in object_definition.property_sources if s.type_ in ('property', 'object')]
-        ds = database.raw_query(connection, object_definition.table_name, column_list, where_clause, query_params)  # type: DataSet
-        dt = ds.tables[object_definition.table_name]  # type: DataTable
+        ds: DataSet = database.raw_query(connection,
+                                         object_definition.table_name,
+                                         column_list,
+                                         where_clause,
+                                         query_params)
+        dt: DataTable = ds.tables[object_definition.table_name]
 
-        res = []
+        res: List[object] = []
+        row: DataRow
         for row in dt.rows.values():
             object_instance = getattr(importlib.import_module(module), name)()
             for property_source in object_definition.property_sources:
@@ -113,23 +125,32 @@ class ObjectProvider(JsonDeserializable):
                     child_object_id = row.get(property_source.src_column)
                     if child_object_id is not None:
                         child_object_where_clause = property_source.src_column + '=?'
-                        child_object = self._query_objects(database, connection, property_source.object_name, child_object_where_clause, (row.get(property_source.src_column),))[0]
+                        child_object = self._query_objects(database,
+                                                           connection,
+                                                           property_source.object_name,
+                                                           child_object_where_clause,
+                                                           (row.get(property_source.src_column),))[0]
                         setattr(object_instance, property_source.name, child_object)
                 elif property_source.type_ == 'list':
                     child_object_where_clause = property_source.src_column + '=?'
-                    child_objects = self._query_objects(database, connection, property_source.object_name, child_object_where_clause, (row.get(property_source.src_column),))
+                    child_objects = self._query_objects(database,
+                                                        connection,
+                                                        property_source.object_name,
+                                                        child_object_where_clause,
+                                                        (row.get(property_source.src_column),))
                     setattr(object_instance, property_source.name, child_objects)
             res.append(object_instance)
         return res
 
     def _object_to_dataset(self, database: Database, connection: sqlite3.Connection, obj: object) -> DataSet:
-        res = DataSet()
-        object_name = obj.__module__ + '.' + obj.__class__.__name__
-        object_definition = self.get_object_definition(object_name)  # type: ObjectDefinition
+        res: DataSet = DataSet()
+        object_name: str = obj.__module__ + '.' + obj.__class__.__name__
+        object_definition: ObjectDefinition = self.get_object_definition(object_name)
         if object_definition is None:
-            raise ValueError('Object definition for type {t} is not defined'.format(t=type(obj)))
+            raise ValueError(f'Object definition for type {type(obj)} is not defined')
         res.tables[object_definition.table_name] = DataTable(object_definition.table_name)
-        row = DataRow(object_definition.table_name, getattr(obj, object_definition.object_id))
+        row: DataRow = DataRow(object_definition.table_name, getattr(obj, object_definition.object_id))
+        property_source: PropertySource
         for property_source in object_definition.property_sources:
             if property_source.type_ == 'property':
                 row.items[property_source.src_column] = getattr(obj, property_source.name)
@@ -138,13 +159,13 @@ class ObjectProvider(JsonDeserializable):
                 if child_obj is not None:
                     child_ds = self._object_to_dataset(database, connection, child_obj)
                     res.merge(child_ds)
-                    child_object_definition = self.get_object_definition(child_obj.__module__ + '.' + child_obj.__class__.__name__)
+                    child_object_definition: ObjectDefinition = self.get_object_definition(
+                        child_obj.__module__ + '.' + child_obj.__class__.__name__)
                     row.items[property_source.src_column] = getattr(child_ds, child_object_definition.object_id)
             elif property_source.type_ == 'list':
                 pass
         res.merge_row(row)
         return res
-
 
     # def query(self, database: Database, object_type: Type, object_id: object) -> object:
     #     res = object_type()
@@ -190,4 +211,3 @@ class ObjectProvider(JsonDeserializable):
     #             property_type = type(getattr(res, property_source.name))
     #             obj = self._query_object(connection, database, property_type, )
     #     return res
-

@@ -1,3 +1,5 @@
+from typing import List
+
 import utils
 from bot.base import BotBase, MessageHandlerBase
 from bot.plugins import Plugin
@@ -13,19 +15,19 @@ def interval_to_journeys(interval: float) -> float:
 
 class AmMessageHandler(MessageHandlerBase):
     def process_message(self, message: Message, bot: BotBase, chat_state: ChatState = None):
-        wp = WordParser.from_str('cmd:w interval:*t')  # type: WordParser
-        parse_res = wp.match(message.text)  # type: MatchResult
+        wp: WordParser = WordParser.from_str('cmd:w interval:*t')
+        parse_res: MatchResult = wp.match(message.text)
         if parse_res.success:
             if parse_res.results['cmd'].lower() == 'chp':
-                intervals = parse_res.results['interval']  # type: float
+                intervals: List[str] = parse_res.results['interval']
                 if intervals:
                     bot.send_message(message.chat, str(sum(map(interval_to_journeys, intervals))), MessageStyle.NONE)
                 else:
-                    tf = TextFormatter.instance()
-                    total_minutes = 15
+                    tf: TextFormatter = TextFormatter.instance()
+                    total_minutes: int = 15
                     while total_minutes <= 9*60:
-                        hours = total_minutes // 60
-                        minutes = total_minutes % 60
+                        hours: int = total_minutes // 60
+                        minutes: int = total_minutes % 60
                         if hours > 0:
                             tf.bold(str(hours)+'h')
                         if minutes > 0:

@@ -1,5 +1,5 @@
 import time
-from typing import Dict
+from typing import Dict, List
 from typing import List
 
 import utils
@@ -7,7 +7,7 @@ from bot.base import MessageHandlerBase, BotBase
 from data import Message, ChatState
 from textformatting import TextFormatter, MessageStyle
 
-OPERATION_EXAMPLES = {
+OPERATION_EXAMPLES: Dict[str, str] = {
     'simplify': 'simplify 2^2+2(2)',
     'factor': 'factor x^2 + 2x',
     'derive': 'derive x^2+2x',
@@ -22,14 +22,14 @@ OPERATION_EXAMPLES = {
 
 class NewtonCalcResponse(object):
     def __init__(self):
-        self.operation = ''  # type: str
-        self.expression = ''  # type: str
-        self.result = ''  # type: str
-        self.error = ''  # type: str
+        self.operation: str = ''
+        self.expression: str = ''
+        self.result: str = ''
+        self.error: str = ''
 
     @staticmethod
     def from_json(json_obj: Dict) -> 'NewtonCalcResponse':
-        res = NewtonCalcResponse()
+        res: NewtonCalcResponse = NewtonCalcResponse()
         res.operation = json_obj.get('operation')
         res.expression = json_obj.get('expression')
         res.result = json_obj.get('result')
@@ -40,12 +40,13 @@ class NewtonCalcResponse(object):
 class NewtonCalcMessageHandler(MessageHandlerBase):
     @staticmethod
     def get_help() -> TextFormatter:
-        res = TextFormatter()  # type: TextFormatter
+        res: TextFormatter = TextFormatter()
         res.italic('\U00002328 Newton').new_line()
         res.normal('Start a new session.').new_line().new_line()
         res.italic('\U00002328 <operation> <expression>').new_line()
         res.normal('Apply <operation> on <expression>.').new_line().new_line()
         res.normal('Examples:').new_line()
+        operation: str
         for operation in OPERATION_EXAMPLES:
             res.italic('  ' + OPERATION_EXAMPLES[operation]).new_line()
         res.new_line()
@@ -59,24 +60,26 @@ class NewtonCalcMessageHandler(MessageHandlerBase):
             self.process_new_message(message, bot)
 
     def process_state(self, message: Message, bot: BotBase, chat_state: ChatState):
-        words = message.text.split(' ')  # type: List[str]
-        operation = words[0].lower()  # type: str
-        expression = ''.join(words[1:])  # type: str
-        json_obj = utils.get_url_json('https://newton.now.sh/{o}/{e}'.format(o=operation, e=expression))
-        res = NewtonCalcResponse.from_json(json_obj)  # type: NewtonCalcResponse
+        words: List[str] = message.text.split(' ')
+        operation: str = words[0].lower()
+        expression: str = ''.join(words[1:])
+        json_obj = utils.get_url_json(f'https://newton.now.sh/{operation}/{expression}')
+        res: NewtonCalcResponse = NewtonCalcResponse.from_json(json_obj)
         if res.error:
             bot.send_message(message.chat, 'Error: ' + res.error, MessageStyle.NONE)
         else:
-            result_msg = res.result  # type: str
+            result_msg: str = res.result
             bot.send_message(message.chat, result_msg, MessageStyle.NONE)
 
     def process_new_message(self, message: Message, bot: BotBase):
-        words = message.text.split(' ')
+        words: List[str] = message.text.split(' ')
         if words[0].lower() == 'newton':
 
-            bot.send_message(message.chat, 'Newton Calc. Give me an operation and an expression. Type \'quit\' to exit:', MessageStyle.NONE)
+            bot.send_message(message.chat,
+                             'Newton Calc. Give me an operation and an expression. Type \'quit\' to exit:',
+                             MessageStyle.NONE)
 
-            state = ChatState()
+            state: ChatState = ChatState()
             state.last_time = time.time()
             state.chat_id = message.chat.id_chat
             state.current_handler_name = self.handler_name
