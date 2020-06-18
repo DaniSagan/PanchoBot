@@ -21,7 +21,7 @@ class PropertySource(JsonDeserializable):
 
     @classmethod
     def from_json(cls, json_object: Dict) -> 'PropertySource':
-        res = PropertySource()
+        res: PropertySource = PropertySource()
         res.name = json_object['name']
         res.type_ = json_object['type']
         # res.src_table = json_object['src_table']
@@ -67,11 +67,13 @@ class ObjectProvider(JsonDeserializable):
 
     def _query_object(self, database: Database, connection: sqlite3.Connection, object_name: str,
                       id_object: object) -> object:
-        object_definition = self.get_object_definition(object_name)  # type: ObjectDefinition
+        object_definition: ObjectDefinition = self.get_object_definition(object_name)
         if object_definition is None:
-            raise ValueError('Object definition for type {t} is not defined'.format(t=object_name))
+            raise ValueError(f'Object definition for type {object_name} is not defined')
+        name: str
+        module: str
         module, name = object_name.split('.')
-        object_instance = getattr(__import__(module), name)()
+        object_instance: object = getattr(__import__(module), name)()
         # row = database.query_row(connection, object_definition.table_name, id_object)  # type: DataRow
         column_list: List[str] = [s.src_column for s in object_definition.property_sources if s.type_ in ('property', 'object')]
         ds: DataSet = database.raw_query(connection,

@@ -7,12 +7,13 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from sqlite3.dbapi2 import Connection
 from typing import Dict, Optional
 from typing import List, Union
 
 import utils
 from bot.base import BotBase, InlineKeyboardMarkup, MessageHandlerBase
-from bot.plugins import PluginCollection
+from bot.plugins import PluginCollection, Plugin
 from data import GetUpdatesResponse, Chat, Message, BotConfig, ChatState, CallbackQuery, Task
 from db.database import Database, DataSet, DataRow
 from objectprovider import ObjectProvider
@@ -25,25 +26,28 @@ class Bot(BotBase, TaskExecutor):
 
     def __init__(self, config: BotConfig, object_provider: ObjectProvider, database: Database):
         BotBase.__init__(self)
-        self.token = config.tokens['telegram']  # type: str
-        self.config = config  # type: BotConfig
-        self.object_provider = object_provider  # type: ObjectProvider
-        self.database = database  # type: Database
-        self.plugin_collection = None  # type: PluginCollection
+        self.token: str = config.tokens['telegram']
+        self.config: BotConfig = config
+        self.object_provider: ObjectProvider = object_provider
+        self.database: Database = database
+        self.plugin_collection: PluginCollection = None
 
     def initialize(self):
         self.scheduler = Scheduler(self)
-        tasks = self.object_provider.query_objects(self.database, 'data.Task', None, None)  # type: List[Task]
+        tasks: List[Task] = self.object_provider.query_objects(self.database, 'data.Task', None, None)
+        task: Task
         for task in tasks:
             self.scheduler.add_task(task)
-        ip = utils.get_ip_address()
+        ip: str = utils.get_ip_address()
         chats: List[Chat] = self.object_provider.query_objects(self.database, 'data.Chat', None, None)
+        chat: Chat
         for chat in chats:
             try:
                 self.send_message(chat, 'Pancho initialized in host {ip}'.format(ip=ip), MessageStyle.NONE)
             except Exception as ex:
                 logging.error('Could not send message to chat {c}.'.format(c=chat.id_chat), ex)
         self.plugin_collection = PluginCollection('plugins')
+        plugin: Plugin
         for plugin in self.plugin_collection:
             try:
                 plugin.on_load(self)
@@ -55,7 +59,7 @@ class Bot(BotBase, TaskExecutor):
         while self.running:
             logging.info('Waiting for messages...')
             try:
-                response = self.get_updates()  # type: GetUpdatesResponse
+                response: GetUpdatesResponse = self.get_updates()
                 for update in response.result:
                     if update.message is not None:
                         self.on_new_message(update.message)
@@ -75,44 +79,50 @@ class Bot(BotBase, TaskExecutor):
         else:
             req = urllib.request.Request(self.base_url() + action)
         try:
-            with urllib.request.urlopen(req) as response:  # type:  http.client.HTTPResponse
+            response: http.client.HTTPResponse
+            with urllib.request.urlopen(req, timeout=timeout) as response:
                 if response.status == 200:
-                    received_bytes = response.read()  # type: bytes
-                    received_str = received_bytes.decode("utf8")  # type: str
+                    received_bytes: bytes = response.read()
+                    received_str: str = received_bytes.decode("utf8")
                 else:
-                    raise RuntimeError('Could not execute action {a}. Reason: {r}'.format(a=action, r=response.reason))
+                    raise RuntimeError(f'Could not execute action {action}. Reason: {response.reason}')
         except urllib.error.URLError as e:
-            received_bytes = e.read()  # type: bytes
+            received_bytes: bytes = e.read()
             received_obj = json.loads(received_bytes.decode("utf8"))
-            raise RuntimeError('Could not execute action {a}. Error: {e}. Reason: {r}'.format(a=action, e=received_obj['error_code'], r=received_obj['description']))
+            raise RuntimeError(
+                f'Could not execute action {action}. Error: {received_obj["error_code"]}. Reason: {received_obj["description"]}')
 
         # noinspection PyUnboundLocalVariable
-        logging.info('Received response: {r}'.format(r=received_str))
+        logging.info(f'Received response: {received_str}')
         return json.loads(received_str)
 
     def get_updates(self) -> GetUpdatesResponse:
 
-        last_update_id = self.get_last_update_id()  # type: Optional[int]
+        last_update_id: Optional[int] = self.get_last_update_id()
         if last_update_id is None:
-            json_resp = self.call('getUpdates', {"timeout": self.config.get_updates_timeout}, timeout=self.config.get_updates_timeout)
+            json_resp: Dict = self.call('getUpdates',
+                                        {"timeout": self.config.get_updates_timeout},
+                                        timeout=self.config.get_updates_timeout)
         else:
-            json_resp = self.call('getUpdates', {"timeout": self.config.get_updates_timeout, "offset": last_update_id+1}, timeout=self.config.get_updates_timeout)
-        res = GetUpdatesResponse.from_json(json_resp)  # type: GetUpdatesResponse
+            json_resp: Dict = self.call('getUpdates',
+                                        {"timeout": self.config.get_updates_timeout, "offset": last_update_id + 1},
+                                        timeout=self.config.get_updates_timeout)
+        res: GetUpdatesResponse = GetUpdatesResponse.from_json(json_resp)
 
         if len(res.result) == 0:
             return res
 
-        ds = DataSet()  # type: DataSet
+        ds: DataSet = DataSet()
         for result in res.result:
             ds.merge(result.to_data_set)
 
-        last_update_id = max(r.id_update for r in res.result)  # type: int
-        last_update_id_row = DataRow('parameter', 'last_update_id')
+        last_update_id: int = max(r.id_update for r in res.result)
+        last_update_id_row: DataRow = DataRow('parameter', 'last_update_id')
         last_update_id_row.put('key', 'last_update_id')
         last_update_id_row.put('value', str(last_update_id))
         ds.merge_row(last_update_id_row)
 
-        connection = self.database.create_connection()
+        connection: Connection = self.database.create_connection()
         self.database.save_data_set(connection, ds)
         connection.commit()
 
@@ -128,15 +138,15 @@ class Bot(BotBase, TaskExecutor):
 
     def send_message(self, chat: Chat, text: Union[str, TextFormatter], style: MessageStyle) -> Message:
         if type(text) is TextFormatter:
-            message_params = {'chat_id': chat.id_chat, 'text': text.format(style)}
+            message_params: Dict = {'chat_id': chat.id_chat, 'text': text.format(style)}
         else:
-            message_params = {'chat_id': chat.id_chat, 'text': text}
+            message_params: Dict = {'chat_id': chat.id_chat, 'text': text}
         if style == MessageStyle.MARKDOWN:
             message_params['parse_mode'] = 'Markdown'
         elif style == MessageStyle.HTML:
             message_params['parse_mode'] = 'HTML'
-        resp = self.call('sendMessage', message_params)
-        sent_message = Message.from_json(resp['result'])
+        resp: Dict = self.call('sendMessage', message_params)
+        sent_message: Message = Message.from_json(resp['result'])
         self.database.save(sent_message)
         return sent_message
 
@@ -146,21 +156,21 @@ class Bot(BotBase, TaskExecutor):
             self.send_message(chat, text, style)
 
     def send_message_with_inline_keyboard(self, chat: Chat, text: str, style: MessageStyle, inline_keyboard: InlineKeyboardMarkup) -> Message:
-        message_params = {'chat_id': chat.id_chat, 'text': text, 'reply_markup': inline_keyboard.to_json()}
+        message_params: Dict = {'chat_id': chat.id_chat, 'text': text, 'reply_markup': inline_keyboard.to_json()}
         if style == MessageStyle.MARKDOWN:
             message_params['parse_mode'] = 'Markdown'
         elif style == MessageStyle.HTML:
             message_params['parse_mode'] = 'HTML'
         resp = self.call('sendMessage', message_params)
-        sent_message = Message.from_json(resp['result'])
+        sent_message: Message = Message.from_json(resp['result'])
         self.database.save(sent_message)
         return sent_message
 
-    def send_document(self, chat: Chat, filename: str):
+    def send_document(self, chat: Chat, filename: str) -> None:
         subprocess.call(['curl', '-F', 'chat_id=' + str(chat.id_chat), '-F', 'document=@"{x}"'.format(x=filename),
                          self.base_url() + 'sendDocument'])
 
-    def answer_callback_query(self, callback_query_id: str):
+    def answer_callback_query(self, callback_query_id: str) -> None:
         self.call('answerCallbackQuery', {'callback_query_id': callback_query_id})
 
     def get_last_update_id(self) -> Optional[int]:
@@ -214,7 +224,7 @@ class Bot(BotBase, TaskExecutor):
         else:
             self.send_message(callback_query.message.chat, 'Could not retrieve chat state', MessageStyle.NONE)
 
-    def execute_task(self, task: Task):
+    def execute_task(self, task: Task) -> None:
         self.send_message(task.chat, 'This is a task!', MessageStyle.MARKDOWN)
 
 
