@@ -35,9 +35,7 @@ class Bot(BotBase, TaskExecutor):
     def initialize(self):
         self.scheduler = Scheduler(self)
         tasks: List[Task] = self.object_provider.query_objects(self.database, 'data.Task', None, None)
-        task: Task
-        for task in tasks:
-            self.scheduler.add_task(task)
+        self.scheduler.initialize(tasks)
         ip: str = utils.get_ip_address()
         chats: List[Chat] = self.object_provider.query_objects(self.database, 'data.Chat', None, None)
         chat: Chat
